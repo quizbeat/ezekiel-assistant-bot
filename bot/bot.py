@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 user_semaphores = {}
 user_tasks = {}
 
-HELP_MESSAGE = """Commands:
+# TODO: Move localizable strings to a separate file.
+HELP_MESSAGE_EN = """Commands:
 ⚪ /retry – Regenerate last bot answer
 ⚪ /new – Start new dialog
 ⚪ /mode – Select chat mode
@@ -54,6 +55,24 @@ HELP_MESSAGE = """Commands:
 👥 Add bot to <b>group chat</b>: /help_group_chat
 🎤 You can send <b>Voice Messages</b> instead of text
 """
+
+HELP_MESSAGE_RU = """Команды:
+⚪ /retry – Перегенерировать последний ответ
+⚪ /new – Начать новый диалог
+⚪ /mode – Выбрать режим
+⚪ /settings – Настройки
+⚪ /balance – Баланс
+⚪ /help – Помощь
+
+🎨 Генерируй картинки из текста в режиме (/mode) <b>👩‍🎨 Художника</b>
+👥 Добавь бота в <b>групповой чат</b>: /help_group_chat
+🎤 Ты можешь отправлять <b>голосовые сообщения</b> вместо текста
+"""
+
+HELP_MESSAGE = {
+    "en": HELP_MESSAGE_EN,
+    "ru": HELP_MESSAGE_RU
+}
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
 
@@ -133,13 +152,15 @@ async def is_bot_mentioned(update: Update, context: CallbackContext):
 
 async def start_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
+
     user_id = update.message.from_user.id
+    user_language = update.message.from_user.language_code
 
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
     reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
-    reply_text += HELP_MESSAGE
+    reply_text += HELP_MESSAGE[user_language]
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
@@ -147,9 +168,13 @@ async def start_handle(update: Update, context: CallbackContext):
 
 async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
+
     user_id = update.message.from_user.id
+    user_language = update.message.from_user.language_code
+
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
-    await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
+
+    await update.message.reply_text(HELP_MESSAGE[user_language], parse_mode=ParseMode.HTML)
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
@@ -656,7 +681,16 @@ async def post_init(application: Application):
         BotCommand("/balance", "Show balance"),
         BotCommand("/settings", "Show settings"),
         BotCommand("/help", "Show help message"),
-    ])
+    ], language_code="en")
+
+    await application.bot.set_my_commands([
+        BotCommand("/new", "Начать новый диалог"),
+        BotCommand("/mode", "Выбрать режим"),
+        BotCommand("/retry", "Перегенерировать предыдущий ответ"),
+        BotCommand("/balance", "Баланс"),
+        BotCommand("/settings", "Настройки"),
+        BotCommand("/help", "Помощь"),
+    ], language_code="ru")
 
 def run_bot() -> None:
     application = (
