@@ -2,7 +2,6 @@ import config
 
 import database
 import firestore
-import mongodb
 
 class DatabaseFactory:
 
@@ -12,8 +11,5 @@ class DatabaseFactory:
     def create_database(self) -> database.BotDatabase:
         if self.db_type == "firestore":
             return firestore.Firestore()
-
-        if self.db_type == "mongodb":
-            return mongodb.MongoDB()
 
         raise ValueError(f"Unknown database type <{self.db_type}>")
