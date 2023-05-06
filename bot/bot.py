@@ -1,4 +1,3 @@
-import os
 import logging
 import asyncio
 import traceback
@@ -7,7 +6,7 @@ import json
 import tempfile
 import pydub
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import openai
 
 import telegram
@@ -31,12 +30,12 @@ from telegram.ext import (
 from telegram.constants import ParseMode, ChatAction
 
 import config
-import database
+import database_factory
 import openai_utils
 
 
 # setup
-db = database.Database()
+db = database_factory.DatabaseFactory().create_database()
 logger = logging.getLogger(__name__)
 
 user_semaphores = {}
@@ -235,10 +234,13 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     async def message_handle_fn():
         # new dialog timeout
         if use_new_dialog_timeout:
-            if (datetime.now() - db.get_user_attribute(user_id, "last_interaction")).seconds > config.new_dialog_timeout and len(db.get_dialog_messages(user_id)) > 0:
+            last_interaction = db.get_last_interaction(user_id)
+            has_dialog_messages = len(db.get_dialog_messages(user_id)) > 0
+            if (datetime.now(timezone.utc) - last_interaction).seconds > config.new_dialog_timeout and has_dialog_messages:
                 db.start_new_dialog(user_id)
                 await update.message.reply_text(f"Starting new dialog due to timeout (<b>{config.chat_modes[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
-        db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+        db.set_last_interaction(user_id, datetime.now())
 
         # in case of CancelledError
         n_input_tokens, n_output_tokens = 0, 0
