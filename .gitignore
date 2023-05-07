@@ -131,6 +131,7 @@ dmypy.json
 # Custom
 config/config.yml
 config/config.env
+firebase_service_account.json
 
 docker-compose.dev.yml
 
