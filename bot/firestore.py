@@ -6,17 +6,18 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-import config
-import database
+from bot_config import BotConfig
+from database import BotDatabase
 
 
-class Firestore(database.BotDatabase):
+class Firestore(BotDatabase):
 
-    def __init__(self):
+    def __init__(self, config: BotConfig):
         creds = credentials.Certificate('firebase_service_account.json')
         self.app = firebase_admin.initialize_app(creds)
         self.db = firestore.client()
         self.users_ref = self.db.collection("users")
+        self.config = config
 
     # User
 
@@ -37,6 +38,8 @@ class Firestore(database.BotDatabase):
         first_name: str = "",
         last_name: str = "",
     ):
+        current_model = self.config.models["available_text_models"][0]
+
         user_dict = {
             "chat_id": chat_id,
             "username": username,
@@ -48,7 +51,7 @@ class Firestore(database.BotDatabase):
 
             "current_dialog_id": None,
             "current_chat_mode": "assistant",
-            "current_model": config.models["available_text_models"][0],
+            "current_model": current_model,
 
             "n_used_tokens": {},
 

@@ -136,3 +136,5 @@ firebase_service_account.json
 docker-compose.dev.yml
 
 mongodb/
+
+.vscode

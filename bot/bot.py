@@ -4,10 +4,10 @@ import traceback
 import html
 import json
 import tempfile
-import pydub
 from pathlib import Path
 from datetime import datetime, timezone
 import openai
+import pydub
 
 import telegram
 from telegram import (
@@ -29,13 +29,16 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode, ChatAction
 
-import config
-import database_factory
+from bot_config import BotConfig
+from database_factory import DatabaseFactory
 import openai_utils
 
 
 # setup
-db = database_factory.DatabaseFactory().create_database()
+config = BotConfig()
+db = DatabaseFactory(config).create_database()
+openai_utils.configure_openai(config)
+
 logger = logging.getLogger(__name__)
 
 user_semaphores = {}
@@ -181,7 +184,9 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
 
 async def retry_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
@@ -228,9 +233,11 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         if use_new_dialog_timeout:
             last_interaction = db.get_last_interaction(user_id)
             has_dialog_messages = len(db.get_dialog_messages(user_id)) > 0
-            if (datetime.now(timezone.utc) - last_interaction).seconds > config.new_dialog_timeout and has_dialog_messages:
+            seconds_since_last_interaction = (datetime.now(timezone.utc) - last_interaction).seconds
+            if seconds_since_last_interaction > config.new_dialog_timeout and has_dialog_messages:
                 db.start_new_dialog(user_id)
-                await update.message.reply_text(f"Starting new dialog due to timeout (<b>{config.chat_modes[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
+                chat_mode_name = config.chat_modes[chat_mode]["name"]
+                await update.message.reply_text(f"Starting new dialog due to timeout (<b>{chat_mode_name}</b> mode) ✅", parse_mode=ParseMode.HTML)
 
         db.set_last_interaction(user_id, datetime.now())
 
@@ -255,7 +262,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 "markdown": ParseMode.MARKDOWN
             }[config.chat_modes[chat_mode]["parse_mode"]]
 
-            chatgpt_instance = openai_utils.ChatGPT(model=current_model)
+            chatgpt_instance = openai_utils.ChatGPT(config, model=current_model)
             if config.enable_message_streaming:
                 gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
             else:
