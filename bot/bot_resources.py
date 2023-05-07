@@ -1,5 +1,7 @@
 from typing import List
 
+DEFAULT_LANGUAGE = "en"
+
 class BotResources:
 
     def __init__(self):
@@ -8,28 +10,28 @@ class BotResources:
     def get_supported_languages(self) -> List[str]:
         return ["en", "ru"]
 
-    def get_help_message(self, language="en") -> str:
+    def get_help_message(self, language=DEFAULT_LANGUAGE) -> str:
         return HELP_MESSAGE[language]
     
-    def get_help_group_chat_message(self, language="en") -> str:
+    def get_help_group_chat_message(self, language=DEFAULT_LANGUAGE) -> str:
         return HELP_GROUP_CHAT_MESSAGE[language]
     
-    def get_new_command_title(self, language="en") -> str:
+    def get_new_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return NEW_COMMAND_TITLE[language]
     
-    def get_mode_command_title(self, language="en") -> str:
+    def get_mode_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return MODE_COMMAND_TITLE[language]
     
-    def get_retry_command_title(self, language="en") -> str:
+    def get_retry_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return RETRY_COMMAND_TITLE[language]
 
-    def get_balance_command_title(self, language="en") -> str:
+    def get_balance_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return BALANCE_COMMAND_TITLE[language]
 
-    def get_settings_command_title(self, language="en") -> str:
+    def get_settings_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return SETTINGS_COMMAND_TITLE[language]
 
-    def get_help_command_title(self, language="en") -> str:
+    def get_help_command_title(self, language=DEFAULT_LANGUAGE) -> str:
         return HELP_COMMAND_TITLE[language]
 
 
