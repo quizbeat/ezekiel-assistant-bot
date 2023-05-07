@@ -9,64 +9,28 @@ class BotResources:
         return ["en", "ru"]
 
     def get_help_message(self, language="en") -> str:
-        return HELP_MESSAGES[language]
+        return HELP_MESSAGE[language]
     
     def get_help_group_chat_message(self, language="en") -> str:
-        return HELP_GROUP_CHAT_MESSAGES[language]
+        return HELP_GROUP_CHAT_MESSAGE[language]
     
     def get_new_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Start new dialog"
-        
-        if language == "ru":
-            return "Начать новый диалог"
-        
-        return "Start new dialog"
+        return NEW_COMMAND_TITLE[language]
     
     def get_mode_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Select chat mode"
-        
-        if language == "ru":
-            return "Выбрать режим"
-        
-        return "Select chat mode"
+        return MODE_COMMAND_TITLE[language]
     
     def get_retry_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Re-generate response for previous query"
-        
-        if language == "ru":
-            return "Перегенерировать последний ответ"
-        
-        return "Re-generate response for previous query"
+        return RETRY_COMMAND_TITLE[language]
 
     def get_balance_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Show balance"
-        
-        if language == "ru":
-            return "Баланс"
-        
-        return "Show balance"
+        return BALANCE_COMMAND_TITLE[language]
 
     def get_settings_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Show settings"
-        
-        if language == "ru":
-            return "Настройки"
-        
-        return "Show settings"
+        return SETTINGS_COMMAND_TITLE[language]
 
     def get_help_command_title(self, language="en") -> str:
-        if language == "en":
-            return "Show help message"
-        
-        if language == "ru":
-            return "Помощь"
-        
-        return "Show help message"
+        return HELP_COMMAND_TITLE[language]
 
 
 HELP_MESSAGE_EN = """<b>Commands</b>:
@@ -95,7 +59,7 @@ HELP_MESSAGE_RU = """<b>Команды</b>:
 🎤 Ты можешь отправлять <b>голосовые сообщения</b> вместо текста
 """
 
-HELP_MESSAGES = {
+HELP_MESSAGE = {
     "en": HELP_MESSAGE_EN,
     "ru": HELP_MESSAGE_RU
 }
@@ -111,6 +75,36 @@ To get a reply from the bot in the chat – @ <b>tag</b> it or <b>reply</b> to i
 For example: "{bot_username} write a poem about Telegram"
 """
 
-HELP_GROUP_CHAT_MESSAGES = {
+HELP_GROUP_CHAT_MESSAGE = {
     "en": HELP_GROUP_CHAT_MESSAGE_EN
+}
+
+NEW_COMMAND_TITLE = {
+    "en": "Start new dialog",
+    "ru": "Начать новый диалог"
+}
+
+MODE_COMMAND_TITLE = {
+    "en": "Select chat mode",
+    "ru": "Выбрать режим"
+}
+
+RETRY_COMMAND_TITLE = {
+    "en": "Re-generate response for previous query",
+    "ru": "Перегенерировать последний ответ"
+}
+
+BALANCE_COMMAND_TITLE = {
+    "en": "Show balance",
+    "ru": "Баланс"
+}
+
+SETTINGS_COMMAND_TITLE = {
+    "en": "Show settings",
+    "ru": "Настройки"
+}
+
+HELP_COMMAND_TITLE = {
+    "en": "Show help message",
+    "ru": "Помощь"
 }
