@@ -30,6 +30,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode, ChatAction
 
 from bot_config import BotConfig
+from bot_resources import BotResources
 from database_factory import DatabaseFactory
 import openai_utils
 
@@ -38,54 +39,12 @@ import openai_utils
 config = BotConfig()
 db = DatabaseFactory(config).create_database()
 openai_utils.configure_openai(config)
+resources = BotResources()
 
 logger = logging.getLogger(__name__)
 
 user_semaphores = {}
 user_tasks = {}
-
-# TODO: Move localizable strings to a separate file.
-HELP_MESSAGE_EN = """Commands:
-⚪ /retry – Regenerate last bot answer
-⚪ /new – Start new dialog
-⚪ /mode – Select chat mode
-⚪ /settings – Show settings
-⚪ /balance – Show balance
-⚪ /help – Show help
-
-🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> /mode
-👥 Add bot to <b>group chat</b>: /help_group_chat
-🎤 You can send <b>Voice Messages</b> instead of text
-"""
-
-HELP_MESSAGE_RU = """Команды:
-⚪ /retry – Перегенерировать последний ответ
-⚪ /new – Начать новый диалог
-⚪ /mode – Выбрать режим
-⚪ /settings – Настройки
-⚪ /balance – Баланс
-⚪ /help – Помощь
-
-🎨 Генерируй картинки из текста в режиме (/mode) <b>👩‍🎨 Художника</b>
-👥 Добавь бота в <b>групповой чат</b>: /help_group_chat
-🎤 Ты можешь отправлять <b>голосовые сообщения</b> вместо текста
-"""
-
-HELP_MESSAGE = {
-    "en": HELP_MESSAGE_EN,
-    "ru": HELP_MESSAGE_RU
-}
-
-HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
-
-Instructions (see <b>video</b> below):
-1. Add the bot to the group chat
-2. Make it an <b>admin</b>, so that it can see messages (all other rights can be restricted)
-3. You're awesome!
-
-To get a reply from the bot in the chat – @ <b>tag</b> it or <b>reply</b> to its message.
-For example: "{bot_username} write a poem about Telegram"
-"""
 
 
 def split_text_into_chunks(text, chunk_size):
@@ -154,7 +113,7 @@ async def start_handle(update: Update, context: CallbackContext):
     db.start_new_dialog(user_id)
 
     reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
-    reply_text += HELP_MESSAGE[user_language]
+    reply_text += resources.get_help_message(user_language)
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
@@ -164,11 +123,11 @@ async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
-    user_language = update.message.from_user.language_code
-
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
 
-    await update.message.reply_text(HELP_MESSAGE[user_language], parse_mode=ParseMode.HTML)
+    user_language = update.message.from_user.language_code
+    help_message = resources.get_help_message(user_language)
+    await update.message.reply_text(help_message, parse_mode=ParseMode.HTML)
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
@@ -176,7 +135,9 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
 
-    text = HELP_GROUP_CHAT_MESSAGE.format(bot_username="@" + context.bot.username)
+    user_language = update.message.from_user.language_code
+    help_message = resources.get_help_group_chat_message(user_language)
+    text = help_message.format(bot_username="@" + context.bot.username)
 
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
     await update.message.reply_video(config.help_group_chat_video_path)
@@ -686,24 +647,18 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
     except:
         await context.bot.send_message(update.effective_chat.id, "Some error in error handler")
 
-async def post_init(application: Application):
-    await application.bot.set_my_commands([
-        BotCommand("/new", "Start new dialog"),
-        BotCommand("/mode", "Select chat mode"),
-        BotCommand("/retry", "Re-generate response for previous query"),
-        BotCommand("/balance", "Show balance"),
-        BotCommand("/settings", "Show settings"),
-        BotCommand("/help", "Show help message"),
-    ], language_code="en")
 
-    await application.bot.set_my_commands([
-        BotCommand("/new", "Начать новый диалог"),
-        BotCommand("/mode", "Выбрать режим"),
-        BotCommand("/retry", "Перегенерировать предыдущий ответ"),
-        BotCommand("/balance", "Баланс"),
-        BotCommand("/settings", "Настройки"),
-        BotCommand("/help", "Помощь"),
-    ], language_code="ru")
+async def post_init(application: Application):
+    for language in resources.get_supported_languages():
+        await application.bot.set_my_commands([
+            BotCommand("/new", resources.get_new_command_title(language)),
+            BotCommand("/mode", resources.get_mode_command_title(language)),
+            BotCommand("/retry", resources.get_retry_command_title(language)),
+            BotCommand("/balance", resources.get_balance_command_title(language)),
+            BotCommand("/settings", resources.get_settings_command_title(language)),
+            BotCommand("/help", resources.get_help_command_title(language)),
+        ], language_code=language)
+
 
 def run_bot() -> None:
     application = (
