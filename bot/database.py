@@ -7,7 +7,7 @@ class BotDatabase(ABC):
     # User Management
 
     @abstractmethod
-    def check_if_user_exists(
+    def is_user_registered(
         self, 
         user_id: int, 
         raise_exception: bool = False
@@ -15,7 +15,7 @@ class BotDatabase(ABC):
         pass
 
     @abstractmethod
-    def add_new_user(
+    def register_new_user(
         self,
         user_id: int,
         chat_id: int,

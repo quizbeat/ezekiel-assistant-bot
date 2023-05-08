@@ -1,4 +1,5 @@
 import logging
+from sys import stdout
 import asyncio
 import traceback
 import html
@@ -41,7 +42,13 @@ db = DatabaseFactory(config).create_database()
 openai_utils.configure_openai(config)
 resources = BotResources()
 
+# logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logFormatter = logging.Formatter("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
+consoleHandler = logging.StreamHandler(stdout) # set streamhandler to stdout
+consoleHandler.setFormatter(logFormatter)
+logger.addHandler(consoleHandler)
 
 user_semaphores = {}
 user_tasks = {}
@@ -53,8 +60,10 @@ def split_text_into_chunks(text, chunk_size):
 
 
 async def register_user_if_not_exists(update: Update, context: CallbackContext, user: User):
-    if not db.check_if_user_exists(user.id):
-        db.add_new_user(
+    # logger.debug("1")
+
+    if not db.is_user_registered(user.id):
+        db.register_new_user(
             user.id,
             update.message.chat_id,
             username=user.username,
@@ -63,23 +72,18 @@ async def register_user_if_not_exists(update: Update, context: CallbackContext, 
         )
         db.start_new_dialog(user.id)
 
-    if db.get_current_dialog_id(user.id) is None:
-        db.start_new_dialog(user.id)
+    # logger.debug("2")
+
+    # TODO: Probably not required.
+    # if db.get_current_dialog_id(user.id) is None:
+    #     db.start_new_dialog(user.id)
+
+    # logger.debug("3")
 
     if user.id not in user_semaphores:
         user_semaphores[user.id] = asyncio.Semaphore(1)
 
-    if db.get_current_model(user.id) is None:
-        current_model = config.models["available_text_models"][0]
-        db.set_current_model(user.id, current_model)
-
-    # voice message transcription
-    if db.get_n_transcribed_seconds(user.id) is None:
-        db.set_n_transcribed_seconds(user.id, 0.0)
-
-    # image generation
-    if db.get_n_generated_images(user.id) is None:
-        db.set_n_generated_images(user.id, 0)
+    # logger.debug("4")
 
 
 async def is_bot_mentioned(update: Update, context: CallbackContext):
@@ -104,13 +108,17 @@ async def is_bot_mentioned(update: Update, context: CallbackContext):
 
 
 async def start_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
     user_language = update.message.from_user.language_code
 
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
-    db.start_new_dialog(user_id)
+    
+    # TODO: Should we start a new dialog here?
+    # db.start_new_dialog(user_id)
 
     reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
     reply_text += resources.get_help_message(user_language)
@@ -120,7 +128,11 @@ async def start_handle(update: Update, context: CallbackContext):
 
 
 async def help_handle(update: Update, context: CallbackContext):
+    # logger.debug("1")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
+
+    # logger.debug("2")
 
     user_id = update.message.from_user.id
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
@@ -144,6 +156,8 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
 
 
 async def retry_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     if await is_previous_message_not_answered_yet(update, context):
@@ -164,6 +178,8 @@ async def retry_handle(update: Update, context: CallbackContext):
 
 
 async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True):
+    logger.debug("")
+
     # check if bot was mentioned (for group chats)
     if not await is_bot_mentioned(update, context):
         return
@@ -305,6 +321,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
 
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
@@ -318,6 +336,8 @@ async def is_previous_message_not_answered_yet(update: Update, context: Callback
 
 
 async def voice_message_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     # check if bot was mentioned (for group chats)
     if not await is_bot_mentioned(update, context):
         return
@@ -365,6 +385,8 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
 
 async def generate_image_handle(update: Update, context: CallbackContext, message=None):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
 
@@ -396,6 +418,8 @@ async def generate_image_handle(update: Update, context: CallbackContext, messag
 
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
     
     if await is_previous_message_not_answered_yet(update, context): 
@@ -413,6 +437,8 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
 
 
 async def cancel_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+    
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
@@ -426,6 +452,8 @@ async def cancel_handle(update: Update, context: CallbackContext):
 
 
 def get_chat_mode_menu(page_index: int):
+    logger.debug("")
+
     n_chat_modes_per_page = config.n_chat_modes_per_page
     text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
 
@@ -463,6 +491,8 @@ def get_chat_mode_menu(page_index: int):
 
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
 
@@ -474,11 +504,13 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
 
 
 async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
     if await is_previous_message_not_answered_yet(update.callback_query, context): return
 
     user_id = update.callback_query.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    # db.set_last_interaction(user_id, datetime.now(timezone.utc))
 
     query = update.callback_query
     await query.answer()
@@ -496,6 +528,8 @@ async def show_chat_modes_callback_handle(update: Update, context: CallbackConte
 
 
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
     user_id = update.callback_query.from_user.id
 
@@ -504,6 +538,7 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     chat_mode = query.data.split("|")[1]
 
+    db.set_last_interaction(user_id, datetime.now(timezone.utc))
     db.set_current_chat_mode(user_id, chat_mode)
     db.start_new_dialog(user_id)
 
@@ -515,6 +550,8 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
 
 def get_settings_menu(user_id: int):
+    logger.debug("")
+
     current_model = db.get_current_model(user_id)
     text = config.models["info"][current_model]["description"]
 
@@ -541,6 +578,8 @@ def get_settings_menu(user_id: int):
 
 
 async def settings_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
 
@@ -552,6 +591,8 @@ async def settings_handle(update: Update, context: CallbackContext):
 
 
 async def set_settings_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
     user_id = update.callback_query.from_user.id
 
@@ -571,6 +612,8 @@ async def set_settings_handle(update: Update, context: CallbackContext):
 
 
 async def show_balance_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
@@ -618,11 +661,15 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
 
 async def edited_message_handle(update: Update, context: CallbackContext):
+    logger.debug("")
+
     text = "🥲 Unfortunately, message <b>editing</b> is not supported"
     await update.edited_message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
+    logger.debug("")
+
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
     try:
@@ -649,6 +696,8 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 
 
 async def post_init(application: Application):
+    logger.debug("")
+
     for language in resources.get_supported_languages():
         await application.bot.set_my_commands([
             BotCommand("/new", resources.get_new_command_title(language)),
@@ -661,6 +710,8 @@ async def post_init(application: Application):
 
 
 def run_bot() -> None:
+    logger.debug("")
+
     application = (
         ApplicationBuilder()
         .token(config.telegram_token)

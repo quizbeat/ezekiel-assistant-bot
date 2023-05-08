@@ -31,3 +31,9 @@ class BotConfig:
 
         # files
         self.help_group_chat_video_path = Path(__file__).parent.parent.resolve() / "static" / "help_group_chat.mp4"
+
+    def get_default_chat_mode(self) -> str:
+        return "assistant"
+
+    def get_default_model(self) -> str:
+        return self.models["available_text_models"][0]

@@ -1,3 +1,6 @@
+import logging
+from sys import stdout
+
 from bot_config import BotConfig
 
 import tiktoken
@@ -11,6 +14,13 @@ OPENAI_COMPLETION_OPTIONS = {
     "presence_penalty": 0
 }
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logFormatter = logging.Formatter("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
+consoleHandler = logging.StreamHandler(stdout) # set streamhandler to stdout
+consoleHandler.setFormatter(logFormatter)
+logger.addHandler(consoleHandler)
+
 def configure_openai(config: BotConfig):
     openai.api_key = config.openai_api_key
 
@@ -22,6 +32,8 @@ class ChatGPT:
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
+        logger.debug("")
+
         if chat_mode not in self.config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
@@ -62,6 +74,8 @@ class ChatGPT:
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
     async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
+        logger.debug("")
+
         if chat_mode not in self.config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
@@ -114,6 +128,8 @@ class ChatGPT:
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
 
     def _generate_prompt(self, message, dialog_messages, chat_mode):
+        logger.debug("")
+
         prompt = self.config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
 
@@ -131,6 +147,8 @@ class ChatGPT:
         return prompt
 
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
+        logger.debug("")
+
         prompt = self.config.chat_modes[chat_mode]["prompt_start"]
 
         messages = [{"role": "system", "content": prompt}]
@@ -142,10 +160,13 @@ class ChatGPT:
         return messages
 
     def _postprocess_answer(self, answer):
+        logger.debug("")
         answer = answer.strip()
         return answer
 
     def _count_tokens_from_messages(self, messages, answer, model="gpt-3.5-turbo"):
+        logger.debug("")
+
         encoding = tiktoken.encoding_for_model(model)
 
         if model == "gpt-3.5-turbo":
@@ -174,6 +195,7 @@ class ChatGPT:
         return n_input_tokens, n_output_tokens
 
     def _count_tokens_from_prompt(self, prompt, answer, model="text-davinci-003"):
+        logger.debug("")
         encoding = tiktoken.encoding_for_model(model)
 
         n_input_tokens = len(encoding.encode(prompt)) + 1
@@ -194,5 +216,6 @@ async def generate_images(prompt, n_images=4):
 
 
 async def is_content_acceptable(prompt):
+    logger.debug("")
     r = await openai.Moderation.acreate(input=prompt)
     return not all(r.results[0].categories.values())
