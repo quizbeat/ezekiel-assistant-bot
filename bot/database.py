@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Optional, List
 from datetime import datetime
 
 class BotDatabase(ABC):
@@ -19,9 +19,9 @@ class BotDatabase(ABC):
         self,
         user_id: int,
         chat_id: int,
-        username: str = "",
-        first_name: str = "",
-        last_name: str = "",
+        username: Optional[str],
+        first_name: str,
+        last_name: Optional[str],
     ):
         pass
 
@@ -36,7 +36,7 @@ class BotDatabase(ABC):
         pass
 
     @abstractmethod
-    def get_dialog_messages(self, user_id: int, dialog_id: Optional[str] = None) -> dict:
+    def get_dialog_messages(self, user_id: int, dialog_id: Optional[str] = None) -> List[dict]:
         pass
 
     @abstractmethod

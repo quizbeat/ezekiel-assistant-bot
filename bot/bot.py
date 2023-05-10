@@ -1,5 +1,6 @@
 import logging
 from sys import stdout
+from typing import Optional
 import asyncio
 import traceback
 import html
@@ -12,8 +13,9 @@ import pydub
 
 import telegram
 from telegram import (
-    Update,
     User,
+    Update,
+    CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     BotCommand
@@ -28,7 +30,7 @@ from telegram.ext import (
     AIORateLimiter,
     filters
 )
-from telegram.constants import ParseMode, ChatAction
+from telegram.constants import ParseMode
 
 from bot_config import BotConfig
 from bot_resources import BotResources
@@ -59,96 +61,128 @@ def split_text_into_chunks(text, chunk_size):
         yield text[i:i + chunk_size]
 
 
-async def register_user_if_not_exists(update: Update, context: CallbackContext, user: User):
-    # logger.debug("1")
+def update_last_interaction(user_id: int):
+    db.set_last_interaction(user_id, datetime.now(timezone.utc))
 
+
+async def register_user_if_not_registered_for_update(update: Update):
+    if update.message is None:
+        logger.error("Update has no message")
+        return
+    
+    user = update.message.from_user
+    if user is None:
+        logger.error("Message has no sender (user)")
+        return
+    
+    chat_id = update.message.chat_id
+
+    await register_user_if_not_registered(user, chat_id)
+
+
+async def register_user_if_not_registered_for_callback(callback_query: CallbackQuery):
+    if callback_query.message is None:
+        logger.error("Callback Query has no message")
+        return
+    
+    user = callback_query.from_user
+    if user is None:
+        logger.error("Callback Query has no sender (user)")
+        return
+    
+    chat_id = callback_query.message.chat_id
+
+    await register_user_if_not_registered(user, chat_id)
+
+
+async def register_user_if_not_registered(user: User, chat_id: int):
     if not db.is_user_registered(user.id):
         db.register_new_user(
-            user.id,
-            update.message.chat_id,
+            user_id=user.id,
+            chat_id=chat_id,
             username=user.username,
             first_name=user.first_name,
-            last_name= user.last_name
+            last_name=user.last_name
         )
+
         db.start_new_dialog(user.id)
-
-    # logger.debug("2")
-
-    # TODO: Probably not required.
-    # if db.get_current_dialog_id(user.id) is None:
-    #     db.start_new_dialog(user.id)
-
-    # logger.debug("3")
 
     if user.id not in user_semaphores:
         user_semaphores[user.id] = asyncio.Semaphore(1)
 
-    # logger.debug("4")
 
-
-async def is_bot_mentioned(update: Update, context: CallbackContext):
+async def should_ignore(update: Update, context: CallbackContext):
     try:
         message = update.message
+        if message is None:
+            logger.error("Update has no message")
+            return True
 
         if message.chat.type == "private":
-            return True
+            return False
 
         if message.text is not None and ("@" + context.bot.username) in message.text:
-            return True
+            # The bot mentioned in a group chat, should ignore messages w/o mentions.
+            return False
 
-        if message.reply_to_message is not None:
+        if message.reply_to_message is not None and message.reply_to_message.from_user is not None:
             if message.reply_to_message.from_user.id == context.bot.id:
-                return True
+                return False
 
     except Exception as e:
         logger.error("Exception: %s", e)
-        return True
+        return False # TODO: Why False?
 
-    return False
+    return True
 
 
 async def start_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    logger.debug("called for %s", update.message.from_user.username)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
 
-    user_id = update.message.from_user.id
-    user_language = update.message.from_user.language_code
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    user = update.message.from_user
+    update_last_interaction(user.id)
     
-    # TODO: Should we start a new dialog here?
-    # db.start_new_dialog(user_id)
-
     reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
-    reply_text += resources.get_help_message(user_language)
+    reply_text += resources.get_help_message(user.language_code)
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
 
 
 async def help_handle(update: Update, context: CallbackContext):
-    # logger.debug("1")
+    logger.debug("called for %s", update.message.from_user.username)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
 
-    # logger.debug("2")
+    if update.message is None or update.message.from_user is None:
+        logger.error("Message has no sender (from_user)")
+        return
 
-    user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    user = update.message.from_user
+    update_last_interaction(user.id)
+    help_message = resources.get_help_message(user.language_code)
 
-    user_language = update.message.from_user.language_code
-    help_message = resources.get_help_message(user_language)
     await update.message.reply_text(help_message, parse_mode=ParseMode.HTML)
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    await register_user_if_not_registered_for_update(update)
 
-    user_language = update.message.from_user.language_code
-    help_message = resources.get_help_group_chat_message(user_language)
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
+
+    user = update.message.from_user
+
+    update_last_interaction(user.id)
+
+    help_message = resources.get_help_group_chat_message(user.language_code)
     text = help_message.format(bot_username="@" + context.bot.username)
 
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -156,56 +190,74 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
 
 
 async def retry_handle(update: Update, context: CallbackContext):
-    logger.debug("")
-
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
 
     if await is_previous_message_not_answered_yet(update, context):
         return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
-    user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    user = update.message.from_user
+    update_last_interaction(user.id)
+    dialog_messages = db.get_dialog_messages(user.id)
 
-    dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
     if len(dialog_messages) == 0:
         await update.message.reply_text("No message to retry 🤷‍♂️")
         return
 
     last_dialog_message = dialog_messages.pop()
-    db.set_dialog_messages(user_id, dialog_messages, dialog_id=None)  # last message was removed from the context
-
+    db.set_dialog_messages(user.id, dialog_messages, dialog_id=None)  # last message was removed from the context
     await message_handle(update, context, message=last_dialog_message["user"], use_new_dialog_timeout=False)
 
 
-async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True):
-    logger.debug("")
-
-    # check if bot was mentioned (for group chats)
-    if not await is_bot_mentioned(update, context):
+async def message_handle(
+    update: Update, 
+    context: CallbackContext, 
+    message: Optional[str] = None, 
+    use_new_dialog_timeout=True
+):
+    if await should_ignore(update, context):
+        logger.debug("Ignoring the update")
         return
 
-    # check if message is edited
     if update.edited_message is not None:
+        logger.warning("Ignoring edited messages")
         await edited_message_handle(update, context)
         return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user field)")
+        return
 
-    _message = message or update.message.text
+    message_text = message or update.message.text or ""
+
+    logger.debug("%s sent \"%s\"", update.message.from_user.username, message_text)
 
     # remove bot mention (in group chats)
     if update.message.chat.type != "private":
-        _message = _message.replace("@" + context.bot.username, "").strip()
+        message_text = message_text.replace("@" + context.bot.username, "").strip()
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    await register_user_if_not_registered_for_update(update)
+
+    if await is_previous_message_not_answered_yet(update, context):
+        logger.debug("The previous message not answered yet")
+        return
 
     user_id = update.message.from_user.id
     chat_mode = db.get_current_chat_mode(user_id)
 
     if chat_mode == "artist":
+        logger.debug("Current chat mode is Artist, will generate image")
         await generate_image_handle(update, context, message=message)
         return
 
     async def message_handle_fn():
+        if update.message is None:
+            logger.error("The update has no message")
+            return
+
         # new dialog timeout
         if use_new_dialog_timeout:
             last_interaction = db.get_last_interaction(user_id)
@@ -216,7 +268,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 chat_mode_name = config.chat_modes[chat_mode]["name"]
                 await update.message.reply_text(f"Starting new dialog due to timeout (<b>{chat_mode_name}</b> mode) ✅", parse_mode=ParseMode.HTML)
 
-        db.set_last_interaction(user_id, datetime.now())
+        update_last_interaction(user_id)
 
         # in case of CancelledError
         n_input_tokens, n_output_tokens = 0, 0
@@ -229,7 +281,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             # send typing action
             await update.message.chat.send_action(action="typing")
 
-            if _message is None or len(_message) == 0:
+            if message_text is None or len(message_text) == 0:
                 await update.message.reply_text("🥲 You sent <b>empty message</b>. Please, try again!", parse_mode=ParseMode.HTML)
                 return
 
@@ -239,12 +291,20 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 "markdown": ParseMode.MARKDOWN
             }[config.chat_modes[chat_mode]["parse_mode"]]
 
+            answer = ""
+            n_first_dialog_messages_removed = 0
             chatgpt_instance = openai_utils.ChatGPT(config, model=current_model)
+
             if config.enable_message_streaming:
-                gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                gen = chatgpt_instance.send_message_stream(
+                    message_text, 
+                    dialog_messages=dialog_messages, 
+                    chat_mode=chat_mode
+                )
+
             else:
                 answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                    _message,
+                    message_text,
                     dialog_messages=dialog_messages,
                     chat_mode=chat_mode
                 )
@@ -254,35 +314,49 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
                 gen = fake_gen()
 
-            prev_answer = ""
+            previous_answer = ""
+
             async for gen_item in gen:
                 status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
-                answer = answer[:4096]  # telegram message limit
+                answer = answer[:4096] # telegram message limit
 
                 # update only when 100 new symbols are ready
-                if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
+                if abs(len(answer) - len(previous_answer)) < 100 and status != "finished":
                     continue
 
                 try:
-                    await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id, parse_mode=parse_mode)
+                    await context.bot.edit_message_text(
+                        answer, 
+                        chat_id=placeholder_message.chat_id, 
+                        message_id=placeholder_message.message_id, 
+                        parse_mode=parse_mode
+                    )
+
                 except telegram.error.BadRequest as e:
                     if str(e).startswith("Message is not modified"):
                         continue
-                    else:
-                        await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id)
+
+                    await context.bot.edit_message_text(
+                        answer, 
+                        chat_id=placeholder_message.chat_id, 
+                        message_id=placeholder_message.message_id
+                    )
 
                 await asyncio.sleep(0.01)  # wait a bit to avoid flooding
 
-                prev_answer = answer
+                previous_answer = answer
 
             # update user data
-            new_dialog_message = {"user": _message, "bot": answer, "date": datetime.now()}
-            db.set_dialog_messages(
-                user_id,
-                db.get_dialog_messages(user_id, dialog_id=None) + [new_dialog_message],
-                dialog_id=None
-            )
+            new_dialog_message = {
+                "user": message_text, 
+                "bot": answer, 
+                "date": datetime.now(timezone.utc)
+            }
+
+            current_dialog_messages = db.get_dialog_messages(user_id)
+            new_dialog_messages = current_dialog_messages + [new_dialog_message]
+            db.set_dialog_messages(user_id, new_dialog_messages)
 
             db.set_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
 
@@ -298,11 +372,17 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             return
 
         # send message if some messages were removed from the context
+
+        if n_first_dialog_messages_removed is None:
+            logger.error("n_first_dialog_messages_removed is None")
+            return
+
         if n_first_dialog_messages_removed > 0:
             if n_first_dialog_messages_removed == 1:
                 text = "✍️ <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.\n Send /new command to start new dialog"
             else:
                 text = f"✍️ <i>Note:</i> Your current dialog is too long, so <b>{n_first_dialog_messages_removed} first messages</b> were removed from the context.\n Send /new command to start new dialog"
+
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
     async with user_semaphores[user_id]:
@@ -321,37 +401,51 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
 
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
-    logger.debug("")
+    await register_user_if_not_registered_for_update(update)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
+
     if user_semaphores[user_id].locked():
         text = "⏳ Please <b>wait</b> for a reply to the previous message\n"
         text += "Or you can /cancel it"
-        await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
+        
+        await update.message.reply_text(
+            text, 
+            reply_to_message_id=update.message.id,
+            parse_mode=ParseMode.HTML
+        )
+
         return True
-    else:
-        return False
+
+    return False
 
 
 async def voice_message_handle(update: Update, context: CallbackContext):
-    logger.debug("")
-
-    # check if bot was mentioned (for group chats)
-    if not await is_bot_mentioned(update, context):
+    if await should_ignore(update, context):
+        logger.debug("Ignoring the update")
         return
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    await register_user_if_not_registered_for_update(update)
+
+    if await is_previous_message_not_answered_yet(update, context):
+        logger.debug("The previous message not answered yet")
+        return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     voice = update.message.voice
     
     if voice is None:
-        logger.error("The message has no voice")
+        logger.error("The Voice Message has no voice attached")
         return
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -376,7 +470,8 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     text = f"🎤: <i>{transcribed_text}</i>"
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
-    # update n_transcribed_seconds
+    logger.debug("%s sent voice \"%s\"", update.message.from_user.username, text)
+
     current_n_transcribed_seconds = db.get_n_transcribed_seconds(user_id)
     new_n_transcribed_seconds = current_n_transcribed_seconds + voice.duration
     db.set_n_transcribed_seconds(user_id, new_n_transcribed_seconds)
@@ -384,49 +479,58 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     await message_handle(update, context, message=transcribed_text)
 
 
-async def generate_image_handle(update: Update, context: CallbackContext, message=None):
-    logger.debug("")
+async def generate_image_handle(update: Update, context: CallbackContext, message: Optional[str] = None):
+    await register_user_if_not_registered_for_update(update)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     await update.message.chat.send_action(action="upload_photo")
 
-    message = message or update.message.text
+    message_text = message or update.message.text
+    if message_text is None or len(message_text) == 0:
+        logger.error("Expected non-empty message")
+        return
 
     try:
-        image_urls = await openai_utils.generate_images(message, n_images=config.return_n_generated_images)
+        image_urls = await openai_utils.generate_images(message_text, n_images=config.return_n_generated_images)
+        
     except openai.error.InvalidRequestError as e:
         if str(e).startswith("Your request was rejected as a result of our safety system"):
             text = "🥲 Your request <b>doesn't comply</b> with OpenAI's usage policies.\nWhat did you write there, huh?"
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
             return
-        else:
-            raise
+        
+        raise
 
-    # token usage
     n_generated_images = db.get_n_generated_images(user_id)
     new_n_generated_images = n_generated_images + config.return_n_generated_images
     db.set_n_generated_images(user_id, new_n_generated_images)
 
-    for i, image_url in enumerate(image_urls):
+    for image_url in image_urls:
         await update.message.chat.send_action(action="upload_photo")
         await update.message.reply_photo(image_url, parse_mode=ParseMode.HTML)
 
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
-    logger.debug("")
-
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
     
     if await is_previous_message_not_answered_yet(update, context): 
         return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     db.start_new_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
@@ -437,12 +541,14 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
 
 
 async def cancel_handle(update: Update, context: CallbackContext):
-    logger.debug("")
-    
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
+
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     if user_id in user_tasks:
         task = user_tasks[user_id]
@@ -452,8 +558,6 @@ async def cancel_handle(update: Update, context: CallbackContext):
 
 
 def get_chat_mode_menu(page_index: int):
-    logger.debug("")
-
     n_chat_modes_per_page = config.n_chat_modes_per_page
     text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
 
@@ -491,67 +595,111 @@ def get_chat_mode_menu(page_index: int):
 
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    logger.debug("called for %s", update.message.from_user.username)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    await register_user_if_not_registered_for_update(update)
+
+    if await is_previous_message_not_answered_yet(update, context):
+        return
+    
+    if update.message is None or update.message.from_user is None:
+        logger.error("The message has no sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     text, reply_markup = get_chat_mode_menu(0)
     await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 
+# The Update object passed to this function has only callback_query field.
+# All the data you need to work with should be extracted from callback_query.
 async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    callback_query = update.callback_query
+    if callback_query is None:
+        logger.error("Callback Query is None")
+        return
+    
+    # NOTE: The user info is in the callback_query.from_user,
+    # not in the callback_query.message.from_user.
+    user = callback_query.from_user
+    logger.debug("called for %s", user.username)
 
-    await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
-    if await is_previous_message_not_answered_yet(update.callback_query, context): return
+    await register_user_if_not_registered_for_callback(callback_query)
 
-    user_id = update.callback_query.from_user.id
-    # db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    # TODO: Create an additional function for this that takes a CallbackQuery.
+    if await is_previous_message_not_answered_yet(callback_query, context):
+        logger.debug("The previous message not answered yet")
+        return
 
-    query = update.callback_query
-    await query.answer()
+    # update_last_interaction(user_id)
 
-    page_index = int(query.data.split("|")[1])
+    await callback_query.answer()
+
+    if callback_query.data is None:
+        logger.error("Callback Query Data is None")
+        return
+
+    page_index = int(callback_query.data.split("|")[1])
     if page_index < 0:
+        logger.error("Invalid page index: %d", page_index)
         return
 
     text, reply_markup = get_chat_mode_menu(page_index)
+
     try:
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        await callback_query.edit_message_text(
+            text, 
+            reply_markup=reply_markup, 
+            parse_mode=ParseMode.HTML
+        )
+
     except telegram.error.BadRequest as e:
         if str(e).startswith("Message is not modified"):
             pass
 
 
+# The Update object passed to this function has only callback_query field.
+# All the data you need to work with should be extracted from callback_query.
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    callback_query = update.callback_query
+    if callback_query is None:
+        logger.error("Callback Query is None")
+        return
+    
+    # NOTE: The user info is in the callback_query.from_user,
+    # not in the callback_query.message.from_user.
+    user = callback_query.from_user
 
-    await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
-    user_id = update.callback_query.from_user.id
+    logger.debug("called for %s", user.username)
 
-    query = update.callback_query
-    await query.answer()
+    await register_user_if_not_registered_for_callback(callback_query)
 
-    chat_mode = query.data.split("|")[1]
+    if callback_query.message is None:
+        logger.error("Callback Query has no message")
+        return
+        
+    await callback_query.answer()
 
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
-    db.set_current_chat_mode(user_id, chat_mode)
-    db.start_new_dialog(user_id)
+    if callback_query.data is None:
+        logger.error("Callback Query Data is None")
+        return
+
+    chat_mode = callback_query.data.split("|")[1]
+
+    update_last_interaction(user.id)
+    db.set_current_chat_mode(user.id, chat_mode)
+    db.start_new_dialog(user.id)
 
     await context.bot.send_message(
-        update.callback_query.message.chat.id,
+        callback_query.message.chat.id,
         f"{config.chat_modes[chat_mode]['welcome_message']}",
         parse_mode=ParseMode.HTML
     )
 
 
 def get_settings_menu(user_id: int):
-    logger.debug("")
-
     current_model = db.get_current_model(user_id)
     text = config.models["info"][current_model]["description"]
 
@@ -578,46 +726,61 @@ def get_settings_menu(user_id: int):
 
 
 async def settings_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    logger.debug("called for %s", update.message.from_user.username)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
+
     if await is_previous_message_not_answered_yet(update, context): return
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     text, reply_markup = get_settings_menu(user_id)
     await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 
+# The Update object passed to this function has only callback_query field.
+# All the data you need to work with should be extracted from callback_query.
 async def set_settings_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    callback_query = update.callback_query
+    if callback_query is None:
+        logger.error("Callback Query is None")
+        return
+    
+    # NOTE: The user info is in the callback_query.from_user,
+    # not in the callback_query.message.from_user.
+    user = callback_query.from_user
+    logger.debug("called for %s", user.username)
 
-    await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
-    user_id = update.callback_query.from_user.id
+    await register_user_if_not_registered_for_callback(callback_query)
 
-    query = update.callback_query
-    await query.answer()
+    await callback_query.answer()
 
-    _, model_key = query.data.split("|")
-    db.set_current_model(user_id, model_key)
-    db.start_new_dialog(user_id)
+    _, model_key = callback_query.data.split("|")
+    db.set_current_model(user.id, model_key)
+    db.start_new_dialog(user.id)
 
-    text, reply_markup = get_settings_menu(user_id)
+    text, reply_markup = get_settings_menu(user.id)
+
     try:
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        await callback_query.edit_message_text(
+            text, 
+            reply_markup=reply_markup, 
+            parse_mode=ParseMode.HTML
+        )
+
     except telegram.error.BadRequest as e:
         if str(e).startswith("Message is not modified"):
             pass
 
 
 async def show_balance_handle(update: Update, context: CallbackContext):
-    logger.debug("")
+    logger.debug("called for %s", update.message.from_user.username)
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_registered_for_update(update)
 
     user_id = update.message.from_user.id
-    db.set_last_interaction(user_id, datetime.now(timezone.utc))
+    update_last_interaction(user_id)
 
     # count total usage statistics
     total_n_spent_dollars = 0
@@ -668,8 +831,6 @@ async def edited_message_handle(update: Update, context: CallbackContext):
 
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
-    logger.debug("")
-
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
     try:
@@ -696,8 +857,6 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 
 
 async def post_init(application: Application):
-    logger.debug("")
-
     for language in resources.get_supported_languages():
         await application.bot.set_my_commands([
             BotCommand("/new", resources.get_new_command_title(language)),
@@ -710,15 +869,13 @@ async def post_init(application: Application):
 
 
 def run_bot() -> None:
-    logger.debug("")
-
     application = (
         ApplicationBuilder()
-        .token(config.telegram_token)
-        .concurrent_updates(True)
-        .rate_limiter(AIORateLimiter(max_retries=5))
-        .post_init(post_init)
-        .build()
+            .token(config.telegram_token)
+            .concurrent_updates(True)
+            .rate_limiter(AIORateLimiter(max_retries=5))
+            .post_init(post_init)
+            .build()
     )
 
     # add handlers

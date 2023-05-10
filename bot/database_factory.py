@@ -1,5 +1,4 @@
 from bot_config import BotConfig
-from database import BotDatabase
 from firestore import Firestore
 
 class DatabaseFactory:
@@ -7,7 +6,7 @@ class DatabaseFactory:
     def __init__(self, config: BotConfig):
         self.config = config
 
-    def create_database(self) -> BotDatabase:
+    def create_database(self) -> Firestore:
         if self.config.db_type == "firestore":
             return Firestore(self.config)
 

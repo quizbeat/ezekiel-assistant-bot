@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 DEFAULT_LANGUAGE = "en"
 
@@ -8,31 +8,55 @@ class BotResources:
         pass
 
     def get_supported_languages(self) -> List[str]:
-        return ["en", "ru"]
+        return ["en"]
 
-    def get_help_message(self, language=DEFAULT_LANGUAGE) -> str:
-        return HELP_MESSAGE[language]
-    
-    def get_help_group_chat_message(self, language=DEFAULT_LANGUAGE) -> str:
-        return HELP_GROUP_CHAT_MESSAGE[language]
-    
-    def get_new_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return NEW_COMMAND_TITLE[language]
-    
-    def get_mode_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return MODE_COMMAND_TITLE[language]
-    
-    def get_retry_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return RETRY_COMMAND_TITLE[language]
+    def get_help_message(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
 
-    def get_balance_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return BALANCE_COMMAND_TITLE[language]
+        return HELP_MESSAGE[language or DEFAULT_LANGUAGE]
+    
+    def get_help_group_chat_message(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
 
-    def get_settings_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return SETTINGS_COMMAND_TITLE[language]
+        return HELP_GROUP_CHAT_MESSAGE[language or DEFAULT_LANGUAGE]
+    
+    def get_new_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return NEW_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+    
+    def get_mode_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return MODE_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+    
+    def get_retry_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return RETRY_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
 
-    def get_help_command_title(self, language=DEFAULT_LANGUAGE) -> str:
-        return HELP_COMMAND_TITLE[language]
+    def get_balance_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return BALANCE_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+
+    def get_settings_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return SETTINGS_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+
+    def get_help_command_title(self, language: Optional[str]) -> str:
+        if not language in self.get_supported_languages():
+            language = DEFAULT_LANGUAGE
+            
+        return HELP_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
 
 
 HELP_MESSAGE_EN = """<b>Commands</b>:

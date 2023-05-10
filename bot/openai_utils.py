@@ -32,7 +32,7 @@ class ChatGPT:
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
-        logger.debug("")
+        # logger.debug("")
 
         if chat_mode not in self.config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
@@ -67,7 +67,7 @@ class ChatGPT:
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
     async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
-        logger.debug("")
+        # logger.debug("")
 
         if chat_mode not in self.config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
@@ -106,7 +106,7 @@ class ChatGPT:
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
 
     def _generate_prompt(self, message, dialog_messages, chat_mode):
-        logger.debug("")
+        # logger.debug("")
 
         prompt = self.config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
@@ -125,7 +125,7 @@ class ChatGPT:
         return prompt
 
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
-        logger.debug("")
+        # logger.debug("")
 
         prompt = self.config.chat_modes[chat_mode]["prompt_start"]
 
@@ -138,12 +138,12 @@ class ChatGPT:
         return messages
 
     def _postprocess_answer(self, answer):
-        logger.debug("")
+        # logger.debug("")
         answer = answer.strip()
         return answer
 
     def _count_tokens_from_messages(self, messages, answer, model="gpt-3.5-turbo"):
-        logger.debug("")
+        # logger.debug("")
 
         encoding = tiktoken.encoding_for_model(model)
 
