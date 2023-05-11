@@ -63,7 +63,6 @@ HELP_MESSAGE_EN = """<b>Commands</b>:
 • /retry – Regenerate last bot answer
 • /new – Start new dialog
 • /mode – Select chat mode
-• /settings – Show settings
 • /balance – Show balance
 • /help – Show help
 
@@ -76,7 +75,6 @@ HELP_MESSAGE_RU = """<b>Команды</b>:
 • /retry – Перегенерировать последний ответ
 • /new – Начать новый диалог
 • /mode – Выбрать режим
-• /settings – Настройки
 • /balance – Баланс
 • /help – Помощь
 

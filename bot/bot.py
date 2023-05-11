@@ -381,7 +381,9 @@ async def message_handle(
             if n_first_dialog_messages_removed == 1:
                 text = "✍️ <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.\n Send /new command to start new dialog"
             else:
-                text = f"✍️ <i>Note:</i> Your current dialog is too long, so <b>{n_first_dialog_messages_removed} first messages</b> were removed from the context.\n Send /new command to start new dialog"
+                text = "✍️ <i>Note:</i> Your current dialog is too long, "\
+                      f"so <b>{n_first_dialog_messages_removed} first messages</b>"\
+                       "were removed from the context.\n Send /new command to start new dialog"
 
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
@@ -863,7 +865,7 @@ async def post_init(application: Application):
             BotCommand("/mode", resources.get_mode_command_title(language)),
             BotCommand("/retry", resources.get_retry_command_title(language)),
             BotCommand("/balance", resources.get_balance_command_title(language)),
-            BotCommand("/settings", resources.get_settings_command_title(language)),
+            # BotCommand("/settings", resources.get_settings_command_title(language)),
             BotCommand("/help", resources.get_help_command_title(language)),
         ], language_code=language)
 
@@ -900,8 +902,9 @@ def run_bot() -> None:
     application.add_handler(CallbackQueryHandler(show_chat_modes_callback_handle, pattern="^show_chat_modes"))
     application.add_handler(CallbackQueryHandler(set_chat_mode_handle, pattern="^set_chat_mode"))
 
-    application.add_handler(CommandHandler("settings", settings_handle, filters=user_filter))
-    application.add_handler(CallbackQueryHandler(set_settings_handle, pattern="^set_settings"))
+    # NOTE: Model selection is temporarily disabled until access to GTP-4 is granted.
+    # application.add_handler(CommandHandler("settings", settings_handle, filters=user_filter))
+    # application.add_handler(CallbackQueryHandler(set_settings_handle, pattern="^set_settings"))
 
     application.add_handler(CommandHandler("balance", show_balance_handle, filters=user_filter))
 
