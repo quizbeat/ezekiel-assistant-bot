@@ -14,7 +14,7 @@ class BotConfig:
         self.db_type = self.config_yaml["db_type"]
         self.telegram_token = self.config_yaml["telegram_token"]
         self.openai_api_key = self.config_yaml["openai_api_key"]
-        self.use_chatgpt_api = self.config_yaml.get("use_chatgpt_api", True)
+        self.bot_admin_id = self.config_yaml["bot_admin_id"]
         self.allowed_telegram_usernames = self.config_yaml["allowed_telegram_usernames"]
         self.new_dialog_timeout = self.config_yaml["new_dialog_timeout"]
         self.enable_message_streaming = self.config_yaml.get("enable_message_streaming", True)

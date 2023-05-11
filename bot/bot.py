@@ -835,6 +835,10 @@ async def edited_message_handle(update: Update, context: CallbackContext):
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
+    if update is None:
+        logger.warning("Update is None")
+        return
+
     try:
         # collect error message
         tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
@@ -850,12 +854,24 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
         # split text into multiple messages due to 4096 character limit
         for message_chunk in split_text_into_chunks(message, 4096):
             try:
-                await context.bot.send_message(update.effective_chat.id, message_chunk, parse_mode=ParseMode.HTML)
+                await context.bot.send_message(
+                    update.effective_chat.id, 
+                    message_chunk, 
+                    parse_mode=ParseMode.HTML
+                )
+
             except telegram.error.BadRequest:
                 # answer has invalid characters, so we send it without parse_mode
-                await context.bot.send_message(update.effective_chat.id, message_chunk)
-    except:
-        await context.bot.send_message(update.effective_chat.id, "Some error in error handler")
+                await context.bot.send_message(
+                    update.effective_chat.id, 
+                    message_chunk
+                )
+
+    except Exception as e:
+        await context.bot.send_message(
+            update.effective_chat.id, 
+            f"Exception thrown in error handler: {e}"
+        )
 
 
 async def post_init(application: Application):
