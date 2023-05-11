@@ -1,6 +1,3 @@
-import logging
-from sys import stdout
-
 from typing import Optional, List, Any
 from datetime import datetime, timezone
 import uuid
@@ -10,6 +7,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 
 from bot_config import BotConfig
+from logger_factory import LoggerFactory
 
 
 USERS_COLLECTION_NAME = "users"
@@ -52,12 +50,7 @@ class Firestore:
         self.user_snapshot_cache = {}
         self.user_snapshot_watch = {}
 
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-        logFormatter = logging.Formatter("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
-        consoleHandler = logging.StreamHandler(stdout) # set streamhandler to stdout
-        consoleHandler.setFormatter(logFormatter)
-        self.logger.addHandler(consoleHandler)
+        self.logger = LoggerFactory(config).create_logger(__name__)
 
     def __del__(self):
         for watch in self.user_snapshot_watch.values():
@@ -68,10 +61,10 @@ class Firestore:
     def is_user_registered(self, user_id: int, raise_exception: bool = False) -> bool:
         if self.get_user_snapshot(user_id).exists:
             return True
-        
+
         if raise_exception:
             raise ValueError(f"User {user_id} does not exist")
-        
+
         return False
 
     def register_new_user(
@@ -141,7 +134,7 @@ class Firestore:
         dialogs_collection = self.get_dialogs_collection(user_id)
         dialog_ref = dialogs_collection.document(dialog_id)
         dialog_dict = dialog_ref.get().to_dict()
-        
+
         return dialog_dict[DIALOG_MESSAGES_KEY]
 
     def set_dialog_messages(self, user_id: int, dialog_messages: list, dialog_id: Optional[str] = None):
@@ -168,7 +161,8 @@ class Firestore:
         return self.get_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY) or self.config.get_default_chat_mode()
 
     def set_current_chat_mode(self, user_id: int, current_chat_mode: str):
-        self.set_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY, current_chat_mode)
+        self.set_user_attribute(
+            user_id, USER_CURRENT_CHAT_MODE_KEY, current_chat_mode)
 
     # Used Tokens
 
@@ -187,7 +181,8 @@ class Firestore:
                 USER_N_USED_TOKENS_OUTPUT_KEY: n_output_tokens
             }
 
-        self.set_user_attribute(user_id, USER_N_USED_TOKENS_KEY, n_used_tokens_dict)
+        self.set_user_attribute(
+            user_id, USER_N_USED_TOKENS_KEY, n_used_tokens_dict)
 
     # Transcribed Seconds
 
@@ -195,7 +190,8 @@ class Firestore:
         return int(self.get_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY) or 0)
 
     def set_n_transcribed_seconds(self, user_id: int, n_transcribed_seconds: int):
-        self.set_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, n_transcribed_seconds)
+        self.set_user_attribute(
+            user_id, USER_N_TRANSCRIBED_SECONDS_KEY, n_transcribed_seconds)
 
     # Generated Images
 
@@ -203,24 +199,28 @@ class Firestore:
         return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY) or 0
 
     def set_n_generated_images(self, user_id: int, n_generated_images: int):
-        self.set_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
+        self.set_user_attribute(
+            user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
 
     # Last Interaction
 
     def get_last_interaction(self, user_id: int) -> datetime:
-        google_last_interaction = self.get_user_attribute(user_id, USER_LAST_INTERACTION_KEY)
-        last_interaction = datetime.fromisoformat(google_last_interaction.isoformat())
+        google_last_interaction = self.get_user_attribute(
+            user_id, USER_LAST_INTERACTION_KEY)
+        last_interaction = datetime.fromisoformat(
+            google_last_interaction.isoformat())
         return last_interaction
 
     def set_last_interaction(self, user_id: int, last_interaction: datetime):
-        self.set_user_attribute(user_id, USER_LAST_INTERACTION_KEY, last_interaction)
+        self.set_user_attribute(
+            user_id, USER_LAST_INTERACTION_KEY, last_interaction)
 
     # Private
 
     def get_user_ref(self, user_id: int):
         return self.users_ref.document(f"{user_id}")
 
-    # Returns a snapshot of the current document. 
+    # Returns a snapshot of the current document.
     # If the document does not exist at the time of the snapshot is taken,
     # the snapshot’s reference, data, update_time, and create_time attributes
     # will all be None and its exists attribute will be False.
@@ -228,27 +228,28 @@ class Firestore:
         if user_id in self.user_snapshot_cache:
             # self.logger.debug("Reading from Cache")
             return self.user_snapshot_cache[user_id]
-        
+
         # self.logger.debug("Reading from Firestore")
 
         user_ref = self.get_user_ref(user_id)
-        user_snapshot_watch = user_ref.on_snapshot(self.on_user_snapshot_changes)
+        user_snapshot_watch = user_ref.on_snapshot(
+            self.on_user_snapshot_changes)
         self.user_snapshot_watch[user_id] = user_snapshot_watch
 
         user_snapshot = user_ref.get()
         self.update_user_snapshot_cache(user_id, user_snapshot)
 
         return user_snapshot
-    
+
     def on_user_snapshot_changes(self, snapshots, changes, read_time):
         if len(snapshots) == 0:
             self.logger.error("received an empty snapshot list")
             return
-        
+
         user_snapshot = snapshots[0]
         user_id = int(user_snapshot.id)
         self.update_user_snapshot_cache(user_id, user_snapshot)
-    
+
     def update_user_snapshot_cache(self, user_id: int, user_snapshot):
         self.user_snapshot_cache[user_id] = user_snapshot
         # self.logger.debug("User shapshot cache updated")

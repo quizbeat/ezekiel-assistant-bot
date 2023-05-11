@@ -1,6 +1,7 @@
 from pathlib import Path
 import yaml
 
+
 class BotConfig:
 
     def __init__(self) -> None:
@@ -12,14 +13,18 @@ class BotConfig:
 
         # Initialize config parameters
         self.db_type = self.config_yaml["db_type"]
+        self.log_level = self.config_yaml["log_level"]
         self.telegram_token = self.config_yaml["telegram_token"]
         self.openai_api_key = self.config_yaml["openai_api_key"]
         self.bot_admin_id = self.config_yaml["bot_admin_id"]
         self.allowed_telegram_usernames = self.config_yaml["allowed_telegram_usernames"]
         self.new_dialog_timeout = self.config_yaml["new_dialog_timeout"]
-        self.enable_message_streaming = self.config_yaml.get("enable_message_streaming", True)
-        self.return_n_generated_images = self.config_yaml.get("return_n_generated_images", 1)
-        self.n_chat_modes_per_page = self.config_yaml.get("n_chat_modes_per_page", 5)
+        self.enable_message_streaming = self.config_yaml.get(
+            "enable_message_streaming", True)
+        self.return_n_generated_images = self.config_yaml.get(
+            "return_n_generated_images", 1)
+        self.n_chat_modes_per_page = self.config_yaml.get(
+            "n_chat_modes_per_page", 5)
 
         # Load chat_modes
         with open(config_dir / "chat_modes.yml", 'r', encoding="utf-8") as file:
@@ -30,7 +35,8 @@ class BotConfig:
             self.models = yaml.safe_load(file)
 
         # files
-        self.help_group_chat_video_path = Path(__file__).parent.parent.resolve() / "static" / "help_group_chat.mp4"
+        self.help_group_chat_video_path = Path(
+            __file__).parent.parent.resolve() / "static" / "help_group_chat.mp4"
 
     def get_default_chat_mode(self) -> str:
         return "assistant"

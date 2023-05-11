@@ -2,6 +2,7 @@ import logging
 from sys import stdout
 
 from bot_config import BotConfig
+from logger_factory import LoggerFactory
 
 import tiktoken
 import openai
@@ -14,20 +15,16 @@ OPENAI_COMPLETION_OPTIONS = {
     "presence_penalty": 0
 }
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logFormatter = logging.Formatter("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
-consoleHandler = logging.StreamHandler(stdout) # set streamhandler to stdout
-consoleHandler.setFormatter(logFormatter)
-logger.addHandler(consoleHandler)
 
 def configure_openai(config: BotConfig):
     openai.api_key = config.openai_api_key
+
 
 class ChatGPT:
 
     def __init__(self, config: BotConfig, model="gpt-3.5-turbo"):
         assert model in {"gpt-3.5-turbo", "gpt-4"}, f"Unknown model: {model}"
+        self.logger = LoggerFactory(config).create_logger(__name__)
         self.config = config
         self.model = model
 
@@ -42,7 +39,8 @@ class ChatGPT:
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(
+                        message, dialog_messages, chat_mode)
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -57,12 +55,14 @@ class ChatGPT:
                 n_input_tokens, n_output_tokens = r.usage.prompt_tokens, r.usage.completion_tokens
             except openai.error.InvalidRequestError as e:  # too many tokens
                 if len(dialog_messages) == 0:
-                    raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+                    raise ValueError(
+                        "Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
 
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
-        n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+        n_first_dialog_messages_removed = n_dialog_messages_before - \
+            len(dialog_messages)
 
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
@@ -77,7 +77,8 @@ class ChatGPT:
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(
+                        message, dialog_messages, chat_mode)
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -90,8 +91,10 @@ class ChatGPT:
                         delta = r_item.choices[0].delta
                         if "content" in delta:
                             answer += delta.content
-                            n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=self.model)
-                            n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                            n_input_tokens, n_output_tokens = self._count_tokens_from_messages(
+                                messages, answer, model=self.model)
+                            n_first_dialog_messages_removed = n_dialog_messages_before - \
+                                len(dialog_messages)
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
                 answer = self._postprocess_answer(answer)
@@ -103,7 +106,8 @@ class ChatGPT:
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
-        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
+        # sending final answer
+        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
     def _generate_prompt(self, message, dialog_messages, chat_mode):
         # logger.debug("")
@@ -131,8 +135,10 @@ class ChatGPT:
 
         messages = [{"role": "system", "content": prompt}]
         for dialog_message in dialog_messages:
-            messages.append({"role": "user", "content": dialog_message["user"]})
-            messages.append({"role": "assistant", "content": dialog_message["bot"]})
+            messages.append(
+                {"role": "user", "content": dialog_message["user"]})
+            messages.append(
+                {"role": "assistant", "content": dialog_message["bot"]})
         messages.append({"role": "user", "content": message})
 
         return messages
@@ -148,7 +154,8 @@ class ChatGPT:
         encoding = tiktoken.encoding_for_model(model)
 
         if model == "gpt-3.5-turbo":
-            tokens_per_message = 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+            # every message follows <im_start>{role/name}\n{content}<im_end>\n
+            tokens_per_message = 4
             tokens_per_name = -1  # if there's a name, the role is omitted
         elif model == "gpt-4":
             tokens_per_message = 3

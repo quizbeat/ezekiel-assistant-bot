@@ -1,5 +1,3 @@
-import logging
-from sys import stdout
 from typing import Optional
 from textwrap import dedent
 import asyncio
@@ -37,6 +35,8 @@ from telegram.constants import ParseMode
 from bot_config import BotConfig
 from bot_resources import BotResources
 from database_factory import DatabaseFactory
+from logger_factory import LoggerFactory
+
 import openai_utils
 
 
@@ -47,13 +47,7 @@ openai_utils.configure_openai(config)
 resources = BotResources()
 
 # logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logFormatter = logging.Formatter(
-    "%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
-consoleHandler = logging.StreamHandler(stdout)  # set streamhandler to stdout
-consoleHandler.setFormatter(logFormatter)
-logger.addHandler(consoleHandler)
+logger = LoggerFactory(config).create_logger(__name__)
 
 user_semaphores = {}
 user_tasks = {}
