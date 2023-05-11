@@ -36,6 +36,7 @@ from telegram.constants import ParseMode
 from bot_config import BotConfig
 from bot_resources import BotResources
 from database_factory import DatabaseFactory
+from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
 
 import openai_utils
@@ -54,6 +55,7 @@ class Bot:
         self.config = config
         self.resources = BotResources()
         self.db = DatabaseFactory(config).create_database()
+        self.usage_calculator = UsageCalculator(config, self.db)
         self.logger = LoggerFactory(config).create_logger(__name__)
 
         self.user_semaphores = {}
@@ -792,46 +794,8 @@ class Bot:
         user_id = update.message.from_user.id
         self.update_last_interaction(user_id)
 
-        # count total usage statistics
-        total_n_spent_dollars = 0
-        total_n_used_tokens = 0
-
-        n_used_tokens_dict = self.db.get_n_used_tokens(user_id)
-        n_generated_images = self.db.get_n_generated_images(user_id)
-        n_transcribed_seconds = self.db.get_n_transcribed_seconds(user_id)
-
-        details_text = "🏷️ Details:\n"
-        for model_key in sorted(n_used_tokens_dict.keys()):
-            n_input_tokens, n_output_tokens = n_used_tokens_dict[model_key]["n_input_tokens"], n_used_tokens_dict[model_key]["n_output_tokens"]
-            total_n_used_tokens += n_input_tokens + n_output_tokens
-
-            n_input_spent_dollars = self.config.models["info"][model_key]["price_per_1000_input_tokens"] * (n_input_tokens / 1000)
-            n_output_spent_dollars = self.config.models["info"][model_key]["price_per_1000_output_tokens"] * (n_output_tokens / 1000)
-            total_n_spent_dollars += n_input_spent_dollars + n_output_spent_dollars
-
-            details_text += f"- {model_key}: <b>{total_n_spent_dollars:.03f}$</b> / <b>{total_n_used_tokens} tokens</b>\n"
-
-        # image generation
-        image_generation_n_spent_dollars = self.config.models["info"]["dalle-2"]["price_per_1_image"] * n_generated_images
-
-        if n_generated_images != 0:
-            details_text += f"- DALL·E 2 (image generation): <b>{image_generation_n_spent_dollars:.03f}$</b> / <b>{n_generated_images} generated images</b>\n"
-
-        total_n_spent_dollars += image_generation_n_spent_dollars
-
-        # voice recognition
-        voice_recognition_n_spent_dollars = self.config.models["info"]["whisper"]["price_per_1_min"] * (n_transcribed_seconds / 60)
-
-        if n_transcribed_seconds != 0:
-            details_text += f"- Whisper (voice recognition): <b>{voice_recognition_n_spent_dollars:.03f}$</b> / <b>{n_transcribed_seconds:.01f} seconds</b>\n"
-
-        total_n_spent_dollars += voice_recognition_n_spent_dollars
-
-        text = f"You spent <b>{total_n_spent_dollars:.03f}$</b>\n"
-        text += f"You used <b>{total_n_used_tokens}</b> tokens\n\n"
-        text += details_text
-
-        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+        reply_text = self.usage_calculator.get_usage_description(user_id)
+        await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def edited_message_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", bot_utils.get_username(update))
