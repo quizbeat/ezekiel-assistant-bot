@@ -65,6 +65,13 @@ def update_last_interaction(user_id: int):
     db.set_last_interaction(user_id, datetime.now(timezone.utc))
 
 
+def get_username(update: Update) -> str:
+    if update.message is None or update.message.from_user is None:
+        return "unknown user"
+    
+    return update.message.from_user.username or "unknown user"
+
+
 async def register_user_if_not_registered_for_update(update: Update):
     if update.message is None:
         logger.error("Update has no message")
@@ -137,7 +144,7 @@ async def should_ignore(update: Update, context: CallbackContext):
 
 
 async def start_handle(update: Update, context: CallbackContext):
-    logger.debug("called for %s", update.message.from_user.username)
+    logger.debug("called for %s", get_username(update))
 
     await register_user_if_not_registered_for_update(update)
 
@@ -156,7 +163,7 @@ async def start_handle(update: Update, context: CallbackContext):
 
 
 async def help_handle(update: Update, context: CallbackContext):
-    logger.debug("called for %s", update.message.from_user.username)
+    logger.debug("called for %s", get_username(update))
 
     await register_user_if_not_registered_for_update(update)
 
@@ -597,7 +604,7 @@ def get_chat_mode_menu(page_index: int):
 
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
-    logger.debug("called for %s", update.message.from_user.username)
+    logger.debug("called for %s", get_username(update))
 
     await register_user_if_not_registered_for_update(update)
 
@@ -728,11 +735,15 @@ def get_settings_menu(user_id: int):
 
 
 async def settings_handle(update: Update, context: CallbackContext):
-    logger.debug("called for %s", update.message.from_user.username)
+    logger.debug("called for %s", get_username(update))
 
     await register_user_if_not_registered_for_update(update)
 
     if await is_previous_message_not_answered_yet(update, context): return
+
+    if update.message is None or update.message.from_user is None:
+        logger.error("Update has no message or sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
     update_last_interaction(user_id)
@@ -777,9 +788,13 @@ async def set_settings_handle(update: Update, context: CallbackContext):
 
 
 async def show_balance_handle(update: Update, context: CallbackContext):
-    logger.debug("called for %s", update.message.from_user.username)
+    logger.debug("called for %s", get_username(update))
 
     await register_user_if_not_registered_for_update(update)
+
+    if update.message is None or update.message.from_user is None:
+        logger.error("Update has no message or sender (from_user)")
+        return
 
     user_id = update.message.from_user.id
     update_last_interaction(user_id)
@@ -817,7 +832,6 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
     total_n_spent_dollars += voice_recognition_n_spent_dollars
 
-
     text = f"You spent <b>{total_n_spent_dollars:.03f}$</b>\n"
     text += f"You used <b>{total_n_used_tokens}</b> tokens\n\n"
     text += details_text
@@ -835,8 +849,8 @@ async def edited_message_handle(update: Update, context: CallbackContext):
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-    if update is None:
-        logger.warning("Update is None")
+    if update is None or update.effective_chat is None:
+        logger.error("Update is None or has no effective chat")
         return
 
     try:
