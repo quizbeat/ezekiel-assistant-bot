@@ -1,134 +1,43 @@
 from typing import List, Optional
+from localization.localization import Localization
 
-DEFAULT_LANGUAGE = "en"
 
 class BotResources:
 
-    def __init__(self):
-        pass
+    def __init__(self, default_language: str = "en"):
+        self.localization = Localization()
+        self.default_language = default_language
 
     def get_supported_languages(self) -> List[str]:
-        return ["en"]
+        return self.localization.get_supported_languages()
 
     def get_help_message(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
+        return self._get_localized("help_message", language)
 
-        return HELP_MESSAGE[language or DEFAULT_LANGUAGE]
-    
-    def get_help_group_chat_message(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
+    def get_help_group_chat_message(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("help_message_group_chat", language, **kwargs)
 
-        return HELP_GROUP_CHAT_MESSAGE[language or DEFAULT_LANGUAGE]
-    
     def get_new_command_title(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return NEW_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
-    
+        return self._get_localized("command_new", language)
+
     def get_mode_command_title(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return MODE_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
-    
+        return self._get_localized("command_mode", language)
+
     def get_retry_command_title(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return RETRY_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+        return self._get_localized("command_retry", language)
 
     def get_balance_command_title(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return BALANCE_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+        return self._get_localized("command_balance", language)
 
     def get_settings_command_title(self, language: Optional[str]) -> str:
-        if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return SETTINGS_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+        return self._get_localized("command_settings", language)
 
     def get_help_command_title(self, language: Optional[str]) -> str:
+        return self._get_localized("command_help", language)
+
+    def _get_localized(self, key: str, language: Optional[str], **kwargs) -> str:
         if not language in self.get_supported_languages():
-            language = DEFAULT_LANGUAGE
-            
-        return HELP_COMMAND_TITLE[language or DEFAULT_LANGUAGE]
+            language = self.default_language
 
-
-HELP_MESSAGE_EN = """<b>Commands</b>:
-• /retry – Regenerate last bot answer
-• /new – Start new dialog
-• /mode – Select chat mode
-• /balance – Show balance
-• /help – Show help
-
-🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> /mode
-👥 Add bot to <b>group chat</b>: /help_group_chat
-🎤 You can send <b>Voice Messages</b> instead of text
-"""
-
-HELP_MESSAGE_RU = """<b>Команды</b>:
-• /retry – Перегенерировать последний ответ
-• /new – Начать новый диалог
-• /mode – Выбрать режим
-• /balance – Баланс
-• /help – Помощь
-
-🎨 Генерируй картинки из текста в режиме (/mode) <b>👩‍🎨 Художника</b>
-👥 Добавь бота в <b>групповой чат</b>: /help_group_chat
-🎤 Ты можешь отправлять <b>голосовые сообщения</b> вместо текста
-"""
-
-HELP_MESSAGE = {
-    "en": HELP_MESSAGE_EN,
-    "ru": HELP_MESSAGE_RU
-}
-
-HELP_GROUP_CHAT_MESSAGE_EN = """You can add bot to any <b>group chat</b> to help and entertain its participants!
-
-Instructions (see <b>video</b> below):
-1. Add the bot to the group chat
-2. Make it an <b>admin</b>, so that it can see messages (all other rights can be restricted)
-3. You're awesome!
-
-To get a reply from the bot in the chat – @ <b>tag</b> it or <b>reply</b> to its message.
-For example: "{bot_username} write a poem about Telegram"
-"""
-
-HELP_GROUP_CHAT_MESSAGE = {
-    "en": HELP_GROUP_CHAT_MESSAGE_EN
-}
-
-NEW_COMMAND_TITLE = {
-    "en": "Start new dialog",
-    "ru": "Начать новый диалог"
-}
-
-MODE_COMMAND_TITLE = {
-    "en": "Select chat mode",
-    "ru": "Выбрать режим"
-}
-
-RETRY_COMMAND_TITLE = {
-    "en": "Re-generate response for previous query",
-    "ru": "Перегенерировать последний ответ"
-}
-
-BALANCE_COMMAND_TITLE = {
-    "en": "Show balance",
-    "ru": "Баланс"
-}
-
-SETTINGS_COMMAND_TITLE = {
-    "en": "Show settings",
-    "ru": "Настройки"
-}
-
-HELP_COMMAND_TITLE = {
-    "en": "Show help message",
-    "ru": "Помощь"
-}
+        language = language or self.default_language
+        return self.localization.get_localized(key, language, **kwargs)

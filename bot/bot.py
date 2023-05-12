@@ -164,11 +164,12 @@ class Bot:
         user = update.message.from_user
         self.update_last_interaction(user.id)
 
+        bot_username = "@" + context.bot.username
         help_message = self.resources.get_help_group_chat_message(
-            user.language_code)
-        text = help_message.format(bot_username="@" + context.bot.username)
+            language=user.language_code,
+            bot_username=bot_username)
 
-        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(help_message, parse_mode=ParseMode.HTML)
         await update.message.reply_video(self.config.help_group_chat_video_path)
 
     async def retry_handle(self, update: Update, context: CallbackContext):
@@ -794,6 +795,7 @@ class Bot:
         user_id = update.message.from_user.id
         self.update_last_interaction(user_id)
 
+        # TODO: Localization
         reply_text = self.usage_calculator.get_usage_description(user_id)
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
@@ -844,6 +846,8 @@ class Bot:
                 f"Exception thrown in error handler: {e}")
 
     async def post_init(self, application: Application):
+        self.logger.debug(self.resources.get_supported_languages())
+
         for language in self.resources.get_supported_languages():
             await application.bot.set_my_commands([
                 BotCommand("/new", self.resources.get_new_command_title(language)),

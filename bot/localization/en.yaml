@@ -1,0 +1,29 @@
+help_message: |
+  <b>Commands</b>:
+  • /retry – Regenerate the last response
+  • /new – Start new dialog
+  • /mode – Select chat mode
+  • /balance – Show balance
+  • /help – Show help
+  
+  🎨 Generate images from text prompts in an <b>👩‍🎨 Artist</b> /mode
+  👥 Add me to a <b>group chat</b>: /help_group_chat
+  🎤 Send <b>Voice Messages</b> instead of text
+
+help_message_group_chat: |
+  You can add me to any <b>group chat</b> to help and entertain its participants!
+  
+  Instructions (see <b>video</b> below):
+  1. Add me to the group chat
+  2. Make it an <b>admin</b>, so that I can see messages (all other rights can be restricted)
+  3. You're awesome!
+  
+  To get a reply from me in the chat – @ <b>tag</b> me or <b>reply</b> to my message.
+  For example: $bot_username write a poem about Telegram
+
+command_new: Start new dialog
+command_mode: Select chat mode
+command_retry: Regenerate last response
+command_balance: Show balance
+command_settings: Show settings
+command_help: Show help
