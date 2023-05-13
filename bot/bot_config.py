@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import yaml
 
@@ -5,25 +6,22 @@ import yaml
 class BotConfig:
 
     def __init__(self) -> None:
-        config_dir = Path(__file__).parent.parent.resolve() / "config"
+        self.log_level = int(os.getenv("LOG_LEVEL") or 10)
 
-        # Load yaml config
-        with open(config_dir / "config.yml", 'r', encoding="utf-8") as file:
-            self.config_yaml = yaml.safe_load(file)
+        self.telegram_token = os.getenv("TELEGRAM_TOKEN")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
 
-        # Initialize config parameters
-        self.db_type = self.config_yaml["db_type"]
-        self.log_level = self.config_yaml["log_level"]
-        self.telegram_token = self.config_yaml["telegram_token"]
-        self.openai_api_key = self.config_yaml["openai_api_key"]
-        self.bot_admin_id = self.config_yaml["bot_admin_id"]
-        self.allowed_telegram_usernames = self.config_yaml["allowed_telegram_usernames"]
-        self.new_dialog_timeout = self.config_yaml["new_dialog_timeout"]
-        self.enable_message_streaming = self.config_yaml.get("enable_message_streaming", True)
-        self.return_n_generated_images = self.config_yaml.get("return_n_generated_images", 1)
-        self.n_chat_modes_per_page = self.config_yaml.get("n_chat_modes_per_page", 5)
+        self.bot_admin_id = int(os.getenv("BOT_ADMIN_ID") or -1)
+        self.allowed_telegram_usernames = (os.getenv("ALLOWED_TELEGRAM_USERNAMES") or "").split(",")
+
+        self.new_dialog_timeout = int(os.getenv("NEW_DIALOG_TIMEOUT") or 600)
+        self.enable_message_streaming = True
+
+        self.return_n_generated_images = 1
+        self.n_chat_modes_per_page = 5
 
         # Load models
+        config_dir = Path(__file__).parent.parent.resolve() / "config"
         with open(config_dir / "models.yml", 'r', encoding="utf-8") as file:
             self.models = yaml.safe_load(file)
 

@@ -8,3 +8,11 @@ services:
     build:
       context: "."
       dockerfile: Dockerfile
+    environment:
+      ALLOWED_TELEGRAM_USERNAMES: ${ALLOWED_TELEGRAM_USERNAMES}
+      BOT_ADMIN_ID: ${BOT_ADMIN_ID}
+      NEW_DIALOG_TIMEOUT: ${NEW_DIALOG_TIMEOUT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS}

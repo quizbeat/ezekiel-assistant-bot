@@ -1,3 +1,7 @@
+import os
+import json
+from base64 import b64decode
+
 from typing import Optional, List, Any
 from datetime import datetime, timezone
 import uuid
@@ -41,7 +45,13 @@ DIALOG_MESSAGES_KEY = "messages"
 class Firestore:
 
     def __init__(self, config: BotConfig):
-        creds = credentials.Certificate('firebase_service_account.json')
+        firebase_creds_base64 = os.getenv("FIREBASE_CREDENTIALS")
+        if firebase_creds_base64 is None:
+            raise ValueError("Firebase credentials missing")
+
+        firebase_creds_json = json.loads(b64decode(firebase_creds_base64))
+        creds = credentials.Certificate(firebase_creds_json)
+
         self.app = firebase_admin.initialize_app(creds)
         self.db = firestore.client()
         self.users_ref = self.db.collection(USERS_COLLECTION_NAME)
