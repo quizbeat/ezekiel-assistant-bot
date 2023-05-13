@@ -49,6 +49,11 @@ editing_not_supported: 🥲 Unfortunately, message <b>editing</b> not supported.
 no_message_to_retry: No message to retry 🤷‍♂️
 empty_message_sent: 🥲 You sent an <b>empty message</b>. Please try again!
 
+balance_you_spent: "🧾 You have spent"
+balance_tokens_used: $count tokens
+balance_images_generated: $count images
+balance_seconds_transcribed: $count seconds
+
 dialog_is_too_long:
   one: | 
     ✍🏼 <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.

@@ -77,6 +77,18 @@ class BotResources:
     def welcome_message(self, language: Optional[str]) -> str:
         return self._get_localized("welcome_message", language)
 
+    def balance_you_spent(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("balance_you_spent", language, **kwargs)
+
+    def balance_tokens_used(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("balance_tokens_used", language, **kwargs)
+
+    def balance_images_generated(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("balance_images_generated", language, **kwargs)
+
+    def balance_seconds_transcribed(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("balance_seconds_transcribed", language, **kwargs)
+
     # Private
 
     def _get_localized(self, key: str, language: Optional[str], **kwargs) -> str:

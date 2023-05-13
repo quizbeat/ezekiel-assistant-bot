@@ -58,7 +58,7 @@ class Bot:
         self.chat_modes = ChatModes()
         self.resources = BotResources()
         self.db = DatabaseFactory(config).create_database()
-        self.usage_calculator = UsageCalculator(config, self.db)
+        self.usage_calculator = UsageCalculator(config, self.db, self.resources)
         self.logger = LoggerFactory(config).create_logger(__name__)
 
         self.user_semaphores = {}
@@ -817,11 +817,10 @@ class Bot:
             self.logger.error("Update has no message or sender (from_user)")
             return
 
-        user_id = update.message.from_user.id
-        self.update_last_interaction(user_id)
+        user = update.message.from_user
+        self.update_last_interaction(user.id)
 
-        # TODO: Localization
-        reply_text = self.usage_calculator.get_usage_description(user_id)
+        reply_text = self.usage_calculator.get_usage_description(user.id, user.language_code)
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def edited_message_handle(self, update: Update, context: CallbackContext):
