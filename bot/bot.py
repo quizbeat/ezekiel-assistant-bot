@@ -44,8 +44,6 @@ import openai_utils
 import telegram_utils
 import bot_utils
 
-TELEGRAM_MESSAGE_LENGTH_LIMIT = 4096
-
 
 class Bot:
 
@@ -323,7 +321,7 @@ class Bot:
                 async for gen_item in gen:
                     status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
-                    answer = answer[:TELEGRAM_MESSAGE_LENGTH_LIMIT]
+                    answer = answer[:telegram_utils.MESSAGE_LENGTH_LIMIT]
 
                     # update only when 100 new symbols are ready
                     if abs(len(answer) - len(previous_answer)) < 100 and status != "finished":
@@ -823,6 +821,22 @@ class Bot:
         reply_text = self.usage_calculator.get_usage_description(user.id, user.language_code)
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
+    async def show_stats_handle(self, update: Update, context: CallbackContext):
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
+
+        if update.message is None:
+            self.logger.error("Update has no message")
+            return
+
+        reply_text = "All Users Stats:\n\n"
+
+        for user_id in self.db.get_all_users_ids():
+            reply_text += f"{self.db.get_user_username(user_id)}\n"
+            usage_description = self.usage_calculator.get_usage_description(user_id, "en")
+            reply_text += f"{usage_description}\n\n"
+
+        await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+
     async def edited_message_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", telegram_utils.get_username(update))
 
@@ -852,7 +866,7 @@ class Bot:
                 "</pre>\n\n"
                 f"<pre>{html.escape(tb_string)}</pre>")
 
-            for message_chunk in bot_utils.split_into_chunks(message, TELEGRAM_MESSAGE_LENGTH_LIMIT):
+            for message_chunk in bot_utils.split_into_chunks(message, telegram_utils.MESSAGE_LENGTH_LIMIT):
                 try:
                     await context.bot.send_message(
                         update.effective_chat.id,
@@ -914,6 +928,9 @@ class Bot:
         application.add_handler(CommandHandler("mode", self.show_chat_modes_handle, filters=user_filter))
         application.add_handler(CallbackQueryHandler(self.show_chat_modes_callback_handle, pattern="^show_chat_modes"))
         application.add_handler(CallbackQueryHandler(self.set_chat_mode_handle, pattern="^set_chat_mode"))
+
+        admin_filter = filters.User(user_id=self.config.bot_admin_id)
+        application.add_handler(CommandHandler("stats", self.show_stats_handle, filters=admin_filter))
 
         # NOTE: Model selection is temporarily disabled until access to GTP-4 is granted.
         # application.add_handler(CommandHandler("settings", settings_handle, filters=user_filter))

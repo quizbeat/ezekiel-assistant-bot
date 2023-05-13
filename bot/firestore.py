@@ -215,6 +215,20 @@ class Firestore:
         self.set_user_attribute(
             user_id, USER_LAST_INTERACTION_KEY, last_interaction)
 
+    # Admin Stats
+
+    def get_all_users_ids(self) -> List[int]:
+        users_stream = self.users_ref.stream()
+
+        ids = []
+        for user in users_stream:
+            ids.append(user.id)
+
+        return ids
+
+    def get_user_username(self, user_id: int) -> str:
+        return self.get_user_attribute(user_id, "username") or f"id:{user_id}"
+
     # Private
 
     def get_user_ref(self, user_id: int):

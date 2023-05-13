@@ -7,6 +7,8 @@ PARSE_MODE_MAPPING = {
     "markdown": ParseMode.MARKDOWN
 }
 
+MESSAGE_LENGTH_LIMIT = 4096
+
 UNKNOWN_USER_USERNAME = "unknown user"
 
 
