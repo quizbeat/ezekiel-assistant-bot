@@ -15,6 +15,8 @@ OPENAI_COMPLETION_OPTIONS = {
     "presence_penalty": 0
 }
 
+OPENAI_INVALID_REQUEST_PREFIX = "Your request was rejected as a result of our safety system"
+
 
 def configure_openai(config: BotConfig):
     openai.api_key = config.openai_api_key
@@ -133,13 +135,25 @@ class ChatGPT:
 
         prompt = self.config.chat_modes[chat_mode]["prompt_start"]
 
-        messages = [{"role": "system", "content": prompt}]
+        messages = [{
+            "role": "system",
+            "content": prompt
+        }]
+
         for dialog_message in dialog_messages:
-            messages.append(
-                {"role": "user", "content": dialog_message["user"]})
-            messages.append(
-                {"role": "assistant", "content": dialog_message["bot"]})
-        messages.append({"role": "user", "content": message})
+            messages.append({
+                "role": "user",
+                "content": dialog_message["user"]
+            })
+            messages.append({
+                "role": "assistant",
+                "content": dialog_message["bot"]
+            })
+
+        messages.append({
+            "role": "user",
+            "content": message
+        })
 
         return messages
 
@@ -192,6 +206,5 @@ async def generate_images(prompt, n_images=4):
 
 
 async def is_content_acceptable(prompt):
-    logger.debug("")
     r = await openai.Moderation.acreate(input=prompt)
     return not all(r.results[0].categories.values())

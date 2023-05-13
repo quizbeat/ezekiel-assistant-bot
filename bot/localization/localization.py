@@ -1,15 +1,17 @@
 import os
 import glob
-import yaml
-
 from typing import List
 from string import Template
+
+import yaml
+from babel.plural import PluralRule
 
 
 class Localization:
 
     def __init__(self) -> None:
         self.data = {}
+        self.plural_rule = PluralRule({'one': 'n is 1'})
 
         files = glob.glob(os.path.join("bot/localization", "*.yaml"))
 
@@ -26,5 +28,14 @@ class Localization:
             return key
 
         text = self.data[language].get(key, key)
+
+        if isinstance(text, dict):
+            count = kwargs.get("count", 1)
+            try:
+                count = int(count)
+            except Exception:
+                return key
+
+            text = text.get(self.plural_rule(count), key)
 
         return Template(text).safe_substitute(**kwargs)
