@@ -42,7 +42,6 @@ class ChatGPT:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, language)
-                    self.logger.debug("Prompt: %s", messages)
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -79,7 +78,6 @@ class ChatGPT:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, language)
-                    self.logger.debug("Prompt: %s", messages)
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,

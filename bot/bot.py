@@ -673,10 +673,9 @@ class Bot:
             self.logger.error("Invalid page index: %d", page_index)
             return
 
-        language = telegram_utils.get_language(update)
         text, reply_markup = self.get_chat_mode_menu(
             page_index=page_index,
-            language=language)
+            language=user.language_code)
 
         try:
             await callback_query.edit_message_text(
