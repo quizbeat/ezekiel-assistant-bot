@@ -1,6 +1,7 @@
-from typing import List
+from typing import Optional, List
 
 from bot_config import BotConfig
+from bot_resources import BotResources
 from firestore import Firestore
 
 
@@ -34,11 +35,12 @@ class GPTUsage:
 
 class UsageCalculator:
 
-    def __init__(self, config: BotConfig, db: Firestore) -> None:
+    def __init__(self, config: BotConfig, db: Firestore, resources: BotResources) -> None:
+        self.resources = resources
         self.config = config
         self.db = db
 
-    def get_usage_description(self, user_id: int) -> str:
+    def get_usage_description(self, user_id: int, language: Optional[str]) -> str:
         n_total_spent_dollars = 0.0
 
         gpt_models_usage = self._get_gpt_usage(user_id)
@@ -53,24 +55,24 @@ class UsageCalculator:
         if whisper_usage.n_transcribed_seconds > 0:
             n_total_spent_dollars += whisper_usage.n_dollars_spent
 
-        description = f"You spent <b>${n_total_spent_dollars:.03f}</b>\n\n"
-        description += "🏷️ Details:\n"
+        you_spent_text = self.resources.balance_you_spent(language)
+        description = f"{you_spent_text}: <b>${n_total_spent_dollars:.03f}</b>\n\n"
 
         for usage in gpt_models_usage:
             n_total_used_tokens = usage.n_used_input_tokens + usage.n_user_output_tokens
-            description += f"• {usage.model_name}: "
-            description += f"<b>${usage.n_dollars_spent:.03f}</b> "
-            description += f"(<b>{n_total_used_tokens}</b> tokens)\n"
+            description += f"💬 {usage.model_name}: "
+            description += f"<b>$ {usage.n_dollars_spent:.03f}</b> "
+            description += f"({self.resources.balance_tokens_used(language, count=n_total_used_tokens)})\n"
 
         if dalle2_usage.n_generated_images > 0:
-            description += "• DALL·E 2 (image generation): "
-            description += f"<b>${dalle2_usage.n_dollars_spent:.03f}</b> "
-            description += f"(<b>{dalle2_usage.n_generated_images}</b> images)\n"
+            description += "🏞️ DALL·E 2: "
+            description += f"<b>$ {dalle2_usage.n_dollars_spent:.03f}</b> "
+            description += f"({self.resources.balance_images_generated(language, count=dalle2_usage.n_generated_images)})\n"
 
         if whisper_usage.n_transcribed_seconds > 0:
-            description += "• Whisper (voice recognition): "
-            description += f"<b>${whisper_usage.n_dollars_spent:.03f}</b> "
-            description += f"(<b>{whisper_usage.n_transcribed_seconds}</b> seconds)\n"
+            description += "🎤 Whisper: "
+            description += f"<b>$ {whisper_usage.n_dollars_spent:.03f}</b> "
+            description += f"({self.resources.balance_seconds_transcribed(language, count=whisper_usage.n_transcribed_seconds)})\n"
 
         return description
 

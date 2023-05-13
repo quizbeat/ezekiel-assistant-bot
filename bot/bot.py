@@ -1,5 +1,3 @@
-from typing import Optional
-from textwrap import dedent
 import asyncio
 import traceback
 import html
@@ -7,6 +5,7 @@ import json
 import math
 import tempfile
 from pathlib import Path
+from typing import Optional
 from datetime import datetime, timezone
 import openai
 import pydub
@@ -39,7 +38,10 @@ from database_factory import DatabaseFactory
 from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
 
+from chat_modes.chat_modes import ChatModes
+
 import openai_utils
+import telegram_utils
 import bot_utils
 
 TELEGRAM_MESSAGE_LENGTH_LIMIT = 4096
@@ -50,12 +52,13 @@ class Bot:
     def __init__(self):
         config = BotConfig()
 
-        openai_utils.configure_openai(config)
+        openai_utils.configure_openai(config.openai_api_key)
 
         self.config = config
+        self.chat_modes = ChatModes()
         self.resources = BotResources()
         self.db = DatabaseFactory(config).create_database()
-        self.usage_calculator = UsageCalculator(config, self.db)
+        self.usage_calculator = UsageCalculator(config, self.db, self.resources)
         self.logger = LoggerFactory(config).create_logger(__name__)
 
         self.user_semaphores = {}
@@ -89,7 +92,8 @@ class Bot:
                 chat_id=chat_id,
                 username=user.username,
                 first_name=user.first_name,
-                last_name=user.last_name)
+                last_name=user.last_name,
+                current_chat_mode=self.chat_modes.get_default_chat_mode())
 
             self.db.start_new_dialog(user.id)
 
@@ -122,7 +126,7 @@ class Bot:
         return True
 
     async def start_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -133,14 +137,15 @@ class Bot:
         user = update.message.from_user
         self.update_last_interaction(user.id)
 
-        reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
-        reply_text += self.resources.get_help_message(user.language_code)
+        language = telegram_utils.get_language(update)
+        welcome_message = self.resources.welcome_message(language)
+        await update.message.reply_text(welcome_message, parse_mode=ParseMode.HTML)
 
-        await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+        await self.help_handle(update, context)
         await self.show_chat_modes_handle(update, context)
 
     async def help_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -164,11 +169,12 @@ class Bot:
         user = update.message.from_user
         self.update_last_interaction(user.id)
 
+        bot_username = "@" + context.bot.username
         help_message = self.resources.get_help_group_chat_message(
-            user.language_code)
-        text = help_message.format(bot_username="@" + context.bot.username)
+            language=user.language_code,
+            bot_username=bot_username)
 
-        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(help_message, parse_mode=ParseMode.HTML)
         await update.message.reply_video(self.config.help_group_chat_video_path)
 
     async def retry_handle(self, update: Update, context: CallbackContext):
@@ -187,7 +193,9 @@ class Bot:
         dialog_messages = self.db.get_dialog_messages(user_id)
 
         if len(dialog_messages) == 0:
-            await update.message.reply_text("No message to retry 🤷‍♂️")
+            language = telegram_utils.get_language(update)
+            reply_text = self.resources.no_message_to_retry(language)
+            await update.message.reply_text(reply_text)
             return
 
         last_dialog_message = dialog_messages.pop()
@@ -206,13 +214,13 @@ class Bot:
             message: Optional[str] = None,
             use_new_dialog_timeout=True):
 
-        if await self.should_ignore(update, context):
-            self.logger.debug("Ignoring the update")
-            return
-
         if update.edited_message is not None:
             self.logger.warning("Ignoring edited messages")
             await self.edited_message_handle(update, context)
+            return
+
+        if await self.should_ignore(update, context):
+            self.logger.debug("Ignoring the update")
             return
 
         if update.message is None or update.message.from_user is None:
@@ -221,7 +229,7 @@ class Bot:
 
         message_text = message or update.message.text or ""
 
-        self.logger.debug("%s sent \"%s\"", bot_utils.get_username(update), message_text)
+        self.logger.debug("%s sent \"%s\"", telegram_utils.get_username(update), message_text)
 
         # remove bot mention (in group chats)
         if update.message.chat.type != "private":
@@ -252,8 +260,11 @@ class Bot:
                 seconds_since_last_interaction = (datetime.now(timezone.utc) - last_interaction).seconds
                 if seconds_since_last_interaction > self.config.new_dialog_timeout and has_dialog_messages:
                     self.db.start_new_dialog(user_id)
-                    chat_mode_name = self.config.chat_modes[chat_mode]["name"]
-                    reply_text = f"Starting new dialog due to timeout (<b>{chat_mode_name}</b> mode) ✅"
+                    language = telegram_utils.get_language(update)
+                    chat_mode_name = self.chat_modes.get_name(chat_mode, language)
+                    reply_text = self.resources.starting_new_dialog_due_to_timeout(
+                        language=language,
+                        chat_mode_name=chat_mode_name)
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
             self.update_last_interaction(user_id)
@@ -269,33 +280,38 @@ class Bot:
                 # send typing action
                 await update.message.chat.send_action(action="typing")
 
+                language = telegram_utils.get_language(update)
+
                 if message_text is None or len(message_text) == 0:
-                    reply_text = "🥲 You sent an <b>empty message</b>. Please, try again!"
+                    reply_text = self.resources.empty_message_sent(language)
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
                     return
 
                 dialog_messages = self.db.get_dialog_messages(user_id, dialog_id=None)
 
-                internal_parse_mode = self.config.chat_modes[chat_mode]["parse_mode"]
-                parse_mode = bot_utils.convert_to_telegram_parse_mode(internal_parse_mode)
+                internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
+                parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
 
                 answer = ""
                 n_first_dialog_messages_removed = 0
-                chatgpt_instance = openai_utils.ChatGPT(self.config, model=current_model)
+                chatgpt_instance = openai_utils.ChatGPT(
+                    config=self.config,
+                    chat_modes=self.chat_modes,
+                    model=current_model)
 
                 if self.config.enable_message_streaming:
                     gen = chatgpt_instance.send_message_stream(
                         message_text,
                         dialog_messages=dialog_messages,
-                        chat_mode=chat_mode
-                    )
+                        chat_mode=chat_mode,
+                        language=language)
 
                 else:
                     answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
                         message_text,
                         dialog_messages=dialog_messages,
-                        chat_mode=chat_mode
-                    )
+                        chat_mode=chat_mode,
+                        language=language)
 
                     async def fake_gen():
                         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
@@ -366,19 +382,11 @@ class Bot:
                 return
 
             if n_first_dialog_messages_removed > 0:
-                if n_first_dialog_messages_removed == 1:
-                    text = dedent("""\
-                        ✍🏼 <i>Note:</i> Your current dialog is too long, 
-                        so your <b>first message</b> was removed from the context.\n
-                        Send /new command to start a new dialog.""")
+                reply_text = self.resources.dialog_is_too_long(
+                    language=telegram_utils.get_language(update),
+                    count=n_first_dialog_messages_removed)
 
-                else:
-                    text = dedent("""\
-                        ✍🏼 <i>Note:</i> Your current dialog is too long, 
-                        so <b>{n_first_dialog_messages_removed} first messages</b>
-                        were removed from the context.\n Send /new command to start a new dialog""")
-
-                await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+                await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
         async with self.user_semaphores[user_id]:
             task = asyncio.create_task(message_handle_fn())
@@ -387,46 +395,49 @@ class Bot:
             try:
                 await task
             except asyncio.CancelledError:
-                await update.message.reply_text("✅ Cancelled", parse_mode=ParseMode.HTML)
+                language = telegram_utils.get_language(update)
+                reply_text = self.resources.dialog_cancelled(language)
+                await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
             else:
                 pass
             finally:
                 if user_id in self.user_tasks:
                     del self.user_tasks[user_id]
 
-    async def is_previous_message_not_answered_yet_for_update(self, update: Update):
+    async def is_previous_message_not_answered_yet_for_update(self, update: Update) -> bool:
         await self.register_user_if_not_registered_for_update(update)
 
         if update.message is None or update.message.from_user is None:
             self.logger.error("The message has no sender (from_user)")
-            return
+            return False
 
         return await self.is_previous_message_not_answered_yet(
             message=update.message,
-            user_id=update.message.from_user.id)
+            user_id=update.message.from_user.id,
+            language=update.message.from_user.language_code)
 
-    async def is_previous_message_not_answered_yet_for_callback(self, callback_query: CallbackQuery):
+    async def is_previous_message_not_answered_yet_for_callback(self, callback_query: CallbackQuery) -> bool:
         await self.register_user_if_not_registered_for_callback(callback_query)
 
         if callback_query.message is None or callback_query.from_user is None:
             self.logger.error("The message has no sender (from_user)")
-            return
+            return False
 
         return await self.is_previous_message_not_answered_yet(
             message=callback_query.message,
-            user_id=callback_query.from_user.id)
+            user_id=callback_query.from_user.id,
+            language=callback_query.from_user.language_code)
 
-    async def is_previous_message_not_answered_yet(self, message: Message, user_id: int):
-        if self.user_semaphores[user_id].locked():
-            reply_text = "⏳ Please <b>wait</b> for a reply to the previous message\nOr /cancel it."
-            await message.reply_text(
-                reply_text,
-                reply_to_message_id=message.id,
-                parse_mode=ParseMode.HTML)
+    async def is_previous_message_not_answered_yet(self, message: Message, user_id: int, language: Optional[str]) -> bool:
+        if not self.user_semaphores[user_id].locked():
+            return False
 
-            return True
+        await message.reply_text(
+            self.resources.wait_for_reply(language),
+            reply_to_message_id=message.id,
+            parse_mode=ParseMode.HTML)
 
-        return False
+        return True
 
     async def voice_message_handle(self, update: Update, context: CallbackContext):
         if await self.should_ignore(update, context):
@@ -472,7 +483,7 @@ class Bot:
         reply_text = f"🎤: <i>{transcribed_text}</i>"
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
-        self.logger.debug("%s sent voice \"%s\"", bot_utils.get_username(update), transcribed_text)
+        self.logger.debug("%s sent voice \"%s\"", telegram_utils.get_username(update), transcribed_text)
 
         current_n_transcribed_seconds = self.db.get_n_transcribed_seconds(user_id)
         new_n_transcribed_seconds = current_n_transcribed_seconds + voice.duration
@@ -506,9 +517,10 @@ class Bot:
                 n_images=self.config.return_n_generated_images)
 
         except openai.error.InvalidRequestError as e:
-            if str(e).startswith("Your request was rejected as a result of our safety system"):
-                text = "🥲 Your request <b>doesn't comply</b> with OpenAI's usage policies.\nWhat did you write there, huh?"
-                await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+            if str(e).startswith(openai_utils.OPENAI_INVALID_REQUEST_PREFIX):
+                language = telegram_utils.get_language(update)
+                reply_text = self.resources.invalid_request(language)
+                await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
                 return
 
             raise
@@ -535,10 +547,13 @@ class Bot:
         self.update_last_interaction(user_id)
 
         self.db.start_new_dialog(user_id)
-        await update.message.reply_text("Starting new dialog ✅")
+
+        language = telegram_utils.get_language(update)
+        reply_text = self.resources.starting_new_dialog(language)
+        await update.message.reply_text(reply_text)
 
         chat_mode = self.db.get_current_chat_mode(user_id)
-        welcome_message = self.config.chat_modes[chat_mode]["welcome_message"]
+        welcome_message = self.chat_modes.get_welcome_message(chat_mode, language)
         await update.message.reply_text(f"{welcome_message}", parse_mode=ParseMode.HTML)
 
     async def cancel_handle(self, update: Update, context: CallbackContext):
@@ -555,27 +570,29 @@ class Bot:
             task = self.user_tasks[user_id]
             task.cancel()
         else:
-            await update.message.reply_text("<i>Nothing to cancel…</i>", parse_mode=ParseMode.HTML)
+            language = telegram_utils.get_language(update)
+            reply_text = self.resources.nothing_to_cancel(language)
+            await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
-    def get_chat_mode_menu(self, page_index: int):
-        n_chat_modes = len(self.config.chat_modes)
+    def get_chat_mode_menu(self, page_index: int, language: Optional[str]):
+        n_chat_modes = self.chat_modes.get_chat_modes_count(language)
         n_chat_modes_per_page = self.config.n_chat_modes_per_page
         n_pages = math.ceil(n_chat_modes / n_chat_modes_per_page)
 
-        text = f"Select <b>chat mode</b> ({n_chat_modes} modes available):"
+        reply_text = self.resources.select_chat_mode(language, count=n_chat_modes)
 
         # buttons
-        chat_mode_keys = list(self.config.chat_modes.keys())
-        page_chat_mode_keys = chat_mode_keys[page_index * n_chat_modes_per_page:(page_index + 1) * n_chat_modes_per_page]
+        chat_modes = self.chat_modes.get_all_chat_modes(language)
+        page_chat_modes = chat_modes[page_index * n_chat_modes_per_page:(page_index + 1) * n_chat_modes_per_page]
 
         keyboard = []
-        for chat_mode_key in page_chat_mode_keys:
-            name = self.config.chat_modes[chat_mode_key]["name"]
-            callback_data = f"set_chat_mode|{chat_mode_key}"
+        for chat_mode in page_chat_modes:
+            name = self.chat_modes.get_name(chat_mode, language)
+            callback_data = f"set_chat_mode|{chat_mode}"
             keyboard.append([InlineKeyboardButton(name, callback_data=callback_data)])
 
         # pagination
-        if len(chat_mode_keys) > n_chat_modes_per_page:
+        if len(chat_modes) > n_chat_modes_per_page:
             last_page_index = (n_pages - 1)
             is_first_page = (page_index == 0)
             is_last_page = (page_index == last_page_index)
@@ -600,10 +617,10 @@ class Bot:
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        return text, reply_markup
+        return reply_text, reply_markup
 
     async def show_chat_modes_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -618,8 +635,13 @@ class Bot:
         user_id = update.message.from_user.id
         self.update_last_interaction(user_id)
 
-        text, reply_markup = self.get_chat_mode_menu(0)
-        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        language = telegram_utils.get_language(update)
+        reply_text, reply_markup = self.get_chat_mode_menu(0, language)
+
+        await update.message.reply_text(
+            reply_text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML)
 
     # The Update object passed to this function has only callback_query field.
     # All the data you need to work with should be extracted from callback_query.
@@ -651,7 +673,9 @@ class Bot:
             self.logger.error("Invalid page index: %d", page_index)
             return
 
-        text, reply_markup = self.get_chat_mode_menu(page_index)
+        text, reply_markup = self.get_chat_mode_menu(
+            page_index=page_index,
+            language=user.language_code)
 
         try:
             await callback_query.edit_message_text(
@@ -694,9 +718,11 @@ class Bot:
         self.db.set_current_chat_mode(user.id, chat_mode)
         self.db.start_new_dialog(user.id)
 
+        welcome_message = self.chat_modes.get_welcome_message(chat_mode, user.language_code)
+
         await context.bot.send_message(
             callback_query.message.chat.id,
-            f"{self.config.chat_modes[chat_mode]['welcome_message']}",
+            welcome_message,
             parse_mode=ParseMode.HTML
         )
 
@@ -727,7 +753,7 @@ class Bot:
         return text, reply_markup
 
     async def settings_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -783,7 +809,7 @@ class Bot:
                 pass
 
     async def show_balance_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -791,21 +817,22 @@ class Bot:
             self.logger.error("Update has no message or sender (from_user)")
             return
 
-        user_id = update.message.from_user.id
-        self.update_last_interaction(user_id)
+        user = update.message.from_user
+        self.update_last_interaction(user.id)
 
-        reply_text = self.usage_calculator.get_usage_description(user_id)
+        reply_text = self.usage_calculator.get_usage_description(user.id, user.language_code)
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def edited_message_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", bot_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username(update))
 
         if update.edited_message is None:
             self.logger.error("Update has no edited message")
             return
 
-        text = "🥲 Unfortunately, message <b>editing</b> is not supported"
-        await update.edited_message.reply_text(text, parse_mode=ParseMode.HTML)
+        language = telegram_utils.get_language(update)
+        reply_text = self.resources.editing_not_supported(language)
+        await update.edited_message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def error_handle(self, update: Update, context: CallbackContext) -> None:
         self.logger.error(msg="Exception while handling an update:", exc_info=context.error)
@@ -844,6 +871,8 @@ class Bot:
                 f"Exception thrown in error handler: {e}")
 
     async def post_init(self, application: Application):
+        self.logger.debug(self.resources.get_supported_languages())
+
         for language in self.resources.get_supported_languages():
             await application.bot.set_my_commands([
                 BotCommand("/new", self.resources.get_new_command_title(language)),

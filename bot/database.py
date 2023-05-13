@@ -2,14 +2,15 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 from datetime import datetime
 
+
 class BotDatabase(ABC):
 
     # User Management
 
     @abstractmethod
     def is_user_registered(
-        self, 
-        user_id: int, 
+        self,
+        user_id: int,
         raise_exception: bool = False
     ) -> bool:
         pass
@@ -30,7 +31,7 @@ class BotDatabase(ABC):
     @abstractmethod
     def start_new_dialog(self, user_id: int) -> str:
         pass
-    
+
     @abstractmethod
     def get_current_dialog_id(self, user_id: int) -> Optional[str]:
         pass

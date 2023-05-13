@@ -74,8 +74,8 @@ class Firestore:
         username: Optional[str],
         first_name: str,
         last_name: Optional[str],
+        current_chat_mode: str,
     ):
-        current_chat_mode = self.config.get_default_chat_mode()
         current_model = self.config.get_default_model()
         datetime_now = datetime.now(timezone.utc)
 
@@ -158,7 +158,7 @@ class Firestore:
     # Current Chat Mode
 
     def get_current_chat_mode(self, user_id: int) -> str:
-        return self.get_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY) or self.config.get_default_chat_mode()
+        return self.get_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY)
 
     def set_current_chat_mode(self, user_id: int, current_chat_mode: str):
         self.set_user_attribute(

@@ -1,0 +1,65 @@
+welcome_message: |
+  Hi! I'm <b>Ezekiel</b>, your personal assistant bot 🤖
+  Ask me anything you want and I'll help you.
+
+help_message: |
+  <b>Commands</b>:
+  • /retry – Regenerate the last response
+  • /new – Start new dialog
+  • /mode – Select chat mode
+  • /balance – Show balance
+  • /help – Show help
+  
+  🎨 Generate images from text prompts in an <b>👩‍🎨 Artist</b> /mode
+
+  👥 Add me to a <b>group chat</b> (learn more /help_group_chat)
+
+  🎤 Send <b>Voice Messages</b> instead of text
+
+help_message_group_chat: |
+  You can add me to any <b>group chat</b> to help and entertain its participants!
+  
+  Instructions (see <b>video</b> below):
+  1. Add me to the group chat
+  2. Make it an <b>admin</b>, so that I can see messages (all other rights can be restricted)
+  3. You're awesome!
+  
+  To get a reply from me in the chat – @ <b>tag</b> me or <b>reply</b> to my message.
+  For example: $bot_username write a poem about Telegram
+
+command_new: Start new dialog
+command_mode: Select chat mode
+command_retry: Regenerate last response
+command_balance: Show balance
+command_settings: Show settings
+command_help: Show help
+
+select_chat_mode: 'Select <b>chat mode</b> ($count modes available):'
+starting_new_dialog: ✅ Starting a new dialog
+starting_new_dialog_due_to_timeout: ✅ Starting new dialog due to timeout (<b>$chat_mode_name</b> mode)
+dialog_cancelled: ✅ Cancelled
+wait_for_reply: |
+  ⏳ Please <b>wait</b> for a reply to the previous message
+  Or /cancel it.
+invalid_request: |
+  🥲 Your request <b>doesn't comply</b> with OpenAI's usage policies.
+  What did you write there, huh?
+nothing_to_cancel: <i>Nothing to cancel…</i>
+editing_not_supported: 🥲 Unfortunately, message <b>editing</b> not supported.
+no_message_to_retry: No message to retry 🤷‍♂️
+empty_message_sent: 🥲 You sent an <b>empty message</b>. Please try again!
+
+balance_you_spent: "🧾 You have spent"
+balance_tokens_used: $count tokens
+balance_images_generated: $count images
+balance_seconds_transcribed: $count seconds
+
+dialog_is_too_long:
+  one: | 
+    ✍🏼 <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.
+    
+    Send /new command to start a new dialog.
+  other: |
+    ✍🏼 <i>Note:</i> Your current dialog is too long, so <b>$count first messages</b> were removed from the context.
+    
+    Send /new command to start a new dialog.
