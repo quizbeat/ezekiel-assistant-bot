@@ -1,5 +1,3 @@
-from typing import Optional
-from textwrap import dedent
 import asyncio
 import traceback
 import html
@@ -7,6 +5,7 @@ import json
 import math
 import tempfile
 from pathlib import Path
+from typing import Optional
 from datetime import datetime, timezone
 import openai
 import pydub
@@ -39,6 +38,8 @@ from database_factory import DatabaseFactory
 from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
 
+from chat_modes.chat_modes import ChatModes
+
 import openai_utils
 import telegram_utils
 import bot_utils
@@ -51,9 +52,10 @@ class Bot:
     def __init__(self):
         config = BotConfig()
 
-        openai_utils.configure_openai(config)
+        openai_utils.configure_openai(config.openai_api_key)
 
         self.config = config
+        self.chat_modes = ChatModes()
         self.resources = BotResources()
         self.db = DatabaseFactory(config).create_database()
         self.usage_calculator = UsageCalculator(config, self.db)
@@ -90,7 +92,8 @@ class Bot:
                 chat_id=chat_id,
                 username=user.username,
                 first_name=user.first_name,
-                last_name=user.last_name)
+                last_name=user.last_name,
+                current_chat_mode=self.chat_modes.get_default_chat_mode())
 
             self.db.start_new_dialog(user.id)
 
@@ -257,8 +260,11 @@ class Bot:
                 seconds_since_last_interaction = (datetime.now(timezone.utc) - last_interaction).seconds
                 if seconds_since_last_interaction > self.config.new_dialog_timeout and has_dialog_messages:
                     self.db.start_new_dialog(user_id)
-                    chat_mode_name = self.config.chat_modes[chat_mode]["name"]
-                    reply_text = f"Starting new dialog due to timeout (<b>{chat_mode_name}</b> mode) ✅"
+                    language = telegram_utils.get_language(update)
+                    chat_mode_name = self.chat_modes.get_name(chat_mode, language)
+                    reply_text = self.resources.starting_new_dialog_due_to_timeout(
+                        language=language,
+                        chat_mode_name=chat_mode_name)
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
             self.update_last_interaction(user_id)
@@ -274,34 +280,38 @@ class Bot:
                 # send typing action
                 await update.message.chat.send_action(action="typing")
 
+                language = telegram_utils.get_language(update)
+
                 if message_text is None or len(message_text) == 0:
-                    language = telegram_utils.get_language(update)
                     reply_text = self.resources.empty_message_sent(language)
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
                     return
 
                 dialog_messages = self.db.get_dialog_messages(user_id, dialog_id=None)
 
-                internal_parse_mode = self.config.chat_modes[chat_mode]["parse_mode"]
+                internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
                 parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
 
                 answer = ""
                 n_first_dialog_messages_removed = 0
-                chatgpt_instance = openai_utils.ChatGPT(self.config, model=current_model)
+                chatgpt_instance = openai_utils.ChatGPT(
+                    config=self.config,
+                    chat_modes=self.chat_modes,
+                    model=current_model)
 
                 if self.config.enable_message_streaming:
                     gen = chatgpt_instance.send_message_stream(
                         message_text,
                         dialog_messages=dialog_messages,
-                        chat_mode=chat_mode
-                    )
+                        chat_mode=chat_mode,
+                        language=language)
 
                 else:
                     answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
                         message_text,
                         dialog_messages=dialog_messages,
-                        chat_mode=chat_mode
-                    )
+                        chat_mode=chat_mode,
+                        language=language)
 
                     async def fake_gen():
                         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
@@ -399,7 +409,7 @@ class Bot:
 
         if update.message is None or update.message.from_user is None:
             self.logger.error("The message has no sender (from_user)")
-            return
+            return False
 
         return await self.is_previous_message_not_answered_yet(
             message=update.message,
@@ -411,7 +421,7 @@ class Bot:
 
         if callback_query.message is None or callback_query.from_user is None:
             self.logger.error("The message has no sender (from_user)")
-            return
+            return False
 
         return await self.is_previous_message_not_answered_yet(
             message=callback_query.message,
@@ -543,7 +553,7 @@ class Bot:
         await update.message.reply_text(reply_text)
 
         chat_mode = self.db.get_current_chat_mode(user_id)
-        welcome_message = self.config.chat_modes[chat_mode]["welcome_message"]
+        welcome_message = self.chat_modes.get_welcome_message(chat_mode, language)
         await update.message.reply_text(f"{welcome_message}", parse_mode=ParseMode.HTML)
 
     async def cancel_handle(self, update: Update, context: CallbackContext):
@@ -565,24 +575,24 @@ class Bot:
             await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     def get_chat_mode_menu(self, page_index: int, language: Optional[str]):
-        n_chat_modes = len(self.config.chat_modes)
+        n_chat_modes = self.chat_modes.get_chat_modes_count(language)
         n_chat_modes_per_page = self.config.n_chat_modes_per_page
         n_pages = math.ceil(n_chat_modes / n_chat_modes_per_page)
 
         reply_text = self.resources.select_chat_mode(language, count=n_chat_modes)
 
         # buttons
-        chat_mode_keys = list(self.config.chat_modes.keys())
-        page_chat_mode_keys = chat_mode_keys[page_index * n_chat_modes_per_page:(page_index + 1) * n_chat_modes_per_page]
+        chat_modes = self.chat_modes.get_all_chat_modes(language)
+        page_chat_modes = chat_modes[page_index * n_chat_modes_per_page:(page_index + 1) * n_chat_modes_per_page]
 
         keyboard = []
-        for chat_mode_key in page_chat_mode_keys:
-            name = self.config.chat_modes[chat_mode_key]["name"]
-            callback_data = f"set_chat_mode|{chat_mode_key}"
+        for chat_mode in page_chat_modes:
+            name = self.chat_modes.get_name(chat_mode, language)
+            callback_data = f"set_chat_mode|{chat_mode}"
             keyboard.append([InlineKeyboardButton(name, callback_data=callback_data)])
 
         # pagination
-        if len(chat_mode_keys) > n_chat_modes_per_page:
+        if len(chat_modes) > n_chat_modes_per_page:
             last_page_index = (n_pages - 1)
             is_first_page = (page_index == 0)
             is_last_page = (page_index == last_page_index)
@@ -709,9 +719,11 @@ class Bot:
         self.db.set_current_chat_mode(user.id, chat_mode)
         self.db.start_new_dialog(user.id)
 
+        welcome_message = self.chat_modes.get_welcome_message(chat_mode, user.language_code)
+
         await context.bot.send_message(
             callback_query.message.chat.id,
-            f"{self.config.chat_modes[chat_mode]['welcome_message']}",
+            welcome_message,
             parse_mode=ParseMode.HTML
         )
 

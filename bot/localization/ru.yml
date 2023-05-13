@@ -36,6 +36,7 @@ command_help: Помощь
 
 select_chat_mode: 'Выбери <b>режим чата</b> ($count режимов доступно):'
 starting_new_dialog: ✅ Начинаем новый диалог
+starting_new_dialog_due_to_timeout: ✅ Начинаем новый диалог из-за таймаута (режим <b>$chat_mode_name</b>)
 dialog_cancelled: ✅ Отменено
 wait_for_reply: |
   ⏳ Пожалуйста <b>дождись</b> ответа на предыдущее сообщение.

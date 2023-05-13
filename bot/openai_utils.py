@@ -1,11 +1,11 @@
-import logging
-from sys import stdout
-
-from bot_config import BotConfig
-from logger_factory import LoggerFactory
+from typing import Optional, List
 
 import tiktoken
 import openai
+
+from bot_config import BotConfig
+from chat_modes.chat_modes import ChatModes
+from logger_factory import LoggerFactory
 
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": 0.7,
@@ -18,31 +18,31 @@ OPENAI_COMPLETION_OPTIONS = {
 OPENAI_INVALID_REQUEST_PREFIX = "Your request was rejected as a result of our safety system"
 
 
-def configure_openai(config: BotConfig):
-    openai.api_key = config.openai_api_key
+def configure_openai(openai_api_key: str):
+    openai.api_key = openai_api_key
 
 
+# TODO: Rename to OpenAIClient
 class ChatGPT:
 
-    def __init__(self, config: BotConfig, model="gpt-3.5-turbo"):
+    def __init__(self, config: BotConfig, chat_modes: ChatModes, model="gpt-3.5-turbo"):
         assert model in {"gpt-3.5-turbo", "gpt-4"}, f"Unknown model: {model}"
         self.logger = LoggerFactory(config).create_logger(__name__)
-        self.config = config
+        self.chat_modes = chat_modes
         self.model = model
 
-    async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
-        # logger.debug("")
-
-        if chat_mode not in self.config.chat_modes.keys():
+    async def send_message(self, message, dialog_messages: List[dict], chat_mode: str, language: Optional[str]):
+        if chat_mode not in self.chat_modes.get_all_chat_modes(language):
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
+
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(
-                        message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, language)
+                    self.logger.debug("Prompt: %s", messages)
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -68,19 +68,18 @@ class ChatGPT:
 
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-    async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
-        # logger.debug("")
-
-        if chat_mode not in self.config.chat_modes.keys():
+    async def send_message_stream(self, message, dialog_messages: List[dict], chat_mode: str, language: Optional[str]):
+        if chat_mode not in self.chat_modes.get_all_chat_modes(language):
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
+
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(
-                        message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, language)
+                    self.logger.debug("Prompt: %s", messages)
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -111,10 +110,8 @@ class ChatGPT:
         # sending final answer
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-    def _generate_prompt(self, message, dialog_messages, chat_mode):
-        # logger.debug("")
-
-        prompt = self.config.chat_modes[chat_mode]["prompt_start"]
+    def _generate_prompt(self, message, dialog_messages, chat_mode: str, language: Optional[str]) -> str:
+        prompt = self.chat_modes.get_prompt_start(chat_mode, language)
         prompt += "\n\n"
 
         # add chat context
@@ -130,10 +127,8 @@ class ChatGPT:
 
         return prompt
 
-    def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
-        # logger.debug("")
-
-        prompt = self.config.chat_modes[chat_mode]["prompt_start"]
+    def _generate_prompt_messages(self, message, dialog_messages, chat_mode: str, language: Optional[str]) -> List:
+        prompt = self.chat_modes.get_prompt_start(chat_mode, language)
 
         messages = [{
             "role": "system",
@@ -158,13 +153,10 @@ class ChatGPT:
         return messages
 
     def _postprocess_answer(self, answer):
-        # logger.debug("")
         answer = answer.strip()
         return answer
 
     def _count_tokens_from_messages(self, messages, answer, model="gpt-3.5-turbo"):
-        # logger.debug("")
-
         encoding = tiktoken.encoding_for_model(model)
 
         if model == "gpt-3.5-turbo":

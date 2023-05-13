@@ -39,17 +39,16 @@ class BotResources:
     def get_help_command_title(self, language: Optional[str]) -> str:
         return self._get_localized("command_help", language)
 
-    # Chat Mode
+    # Common
 
     def select_chat_mode(self, language: Optional[str], **kwargs) -> str:
         return self._get_localized("select_chat_mode", language, **kwargs)
 
-    # New Dialog
-
     def starting_new_dialog(self, language: Optional[str]) -> str:
         return self._get_localized("starting_new_dialog", language)
 
-    # Dialog is Too Long
+    def starting_new_dialog_due_to_timeout(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("starting_new_dialog_due_to_timeout", language, **kwargs)
 
     def dialog_is_too_long(self, language: Optional[str], **kwargs) -> str:
         return self._get_localized("dialog_is_too_long", language, **kwargs)

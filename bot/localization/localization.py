@@ -13,7 +13,7 @@ class Localization:
         self.data = {}
         self.plural_rule = PluralRule({'one': 'n is 1'})
 
-        files = glob.glob(os.path.join("bot/localization", "*.yaml"))
+        files = glob.glob(os.path.join("bot/localization", "*.yml"))
 
         for file in files:
             language = os.path.splitext(os.path.basename(file))[0]
