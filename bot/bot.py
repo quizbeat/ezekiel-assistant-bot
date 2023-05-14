@@ -291,6 +291,8 @@ class Bot:
                 internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
                 parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
 
+                language = bot_utils.detect_language(message_text)
+
                 answer = ""
                 n_first_dialog_messages_removed = 0
                 chatgpt_instance = openai_utils.ChatGPT(

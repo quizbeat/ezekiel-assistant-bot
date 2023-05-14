@@ -35,6 +35,8 @@ class ChatGPT:
         if chat_mode not in self.chat_modes.get_all_chat_modes(language):
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
+        self.logger.debug("language <%s>; message <%s>", language, message)
+
         n_dialog_messages_before = len(dialog_messages)
         answer = None
 
@@ -70,6 +72,8 @@ class ChatGPT:
     async def send_message_stream(self, message, dialog_messages: List[dict], chat_mode: str, language: Optional[str]):
         if chat_mode not in self.chat_modes.get_all_chat_modes(language):
             raise ValueError(f"Chat mode {chat_mode} is not supported")
+
+        self.logger.debug("language <%s>; message <%s>", language, message)
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
