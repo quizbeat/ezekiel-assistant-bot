@@ -147,7 +147,10 @@ class Firestore:
         dialog_ref = dialogs_collection.document(dialog_id)
         dialog_dict = dialog_ref.get().to_dict()
 
-        return dialog_dict[DIALOG_MESSAGES_KEY]
+        if dialog_dict is None or DIALOG_MESSAGES_KEY not in dialog_dict:
+            return []
+
+        return dialog_dict[DIALOG_MESSAGES_KEY] or []
 
     def set_dialog_messages(self, user_id: int, dialog_messages: list, dialog_id: Optional[str] = None):
         self.is_user_registered(user_id, raise_exception=True)
