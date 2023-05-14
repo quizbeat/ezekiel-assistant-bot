@@ -94,7 +94,7 @@ class Bot:
                 last_name=user.last_name,
                 current_chat_mode=self.chat_modes.get_default_chat_mode())
 
-            self.db.start_new_dialog(user.id, read_from_cache=False)
+            self.db.start_new_dialog(user.id)
 
         if user.id not in self.user_semaphores:
             self.user_semaphores[user.id] = asyncio.Semaphore(1)
