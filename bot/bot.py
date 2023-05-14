@@ -7,6 +7,12 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
+
+# Health Check
+import http.server
+import socketserver
+import threading
+
 import openai
 import pydub
 
@@ -944,5 +950,19 @@ class Bot:
         application.run_polling()
 
 
+class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+
+
+def run_health_check_server():
+    with socketserver.TCPServer(("", 8080), HealthCheckHandler) as httpd:
+        print("serving at port", 8080)
+        httpd.serve_forever()
+
+
 if __name__ == "__main__":
+    thread = threading.Thread(target=run_health_check_server)
+    thread.start()
     Bot().run()
