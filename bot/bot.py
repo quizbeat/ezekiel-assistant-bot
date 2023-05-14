@@ -866,6 +866,10 @@ class Bot:
 
         chat_id = int(self.config.bot_admin_id)
 
+        if isinstance(context.error, telegram.error.Conflict):
+            self.logger.debug("DigitalOcean deploy conflict")
+            return
+
         try:
             # collect error message
             tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
