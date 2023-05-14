@@ -74,6 +74,9 @@ class BotResources:
     def empty_message_sent(self, language: Optional[str]) -> str:
         return self._get_localized("empty_message_sent", language)
 
+    def image_generation_limit_exceeded(self, language: Optional[str]) -> str:
+        return self._get_localized("image_generation_limit_exceeded", language)
+
     def welcome_message(self, language: Optional[str]) -> str:
         return self._get_localized("welcome_message", language)
 

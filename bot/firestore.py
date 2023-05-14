@@ -33,6 +33,7 @@ USER_N_USED_TOKENS_INPUT_KEY = "n_input_tokens"
 USER_N_USED_TOKENS_OUTPUT_KEY = "n_output_tokens"
 
 USER_N_GENERATED_IMAGES_KEY = "n_generated_images"
+USER_N_GENERATED_IMAGES_LIMIT_KEY = "n_generated_images_limit"
 USER_N_TRANSCRIBED_SECONDS_KEY = "n_transcribed_seconds"
 
 DIALOGS_COLLECTION_NAME = "dialogs"
@@ -104,6 +105,7 @@ class Firestore:
 
             USER_N_USED_TOKENS_KEY: {},
             USER_N_GENERATED_IMAGES_KEY: 0,
+            USER_N_GENERATED_IMAGES_LIMIT_KEY: 10,
             USER_N_TRANSCRIBED_SECONDS_KEY: 0
         }
 
@@ -211,6 +213,9 @@ class Firestore:
     def set_n_generated_images(self, user_id: int, n_generated_images: int):
         self.set_user_attribute(
             user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
+
+    def get_n_generated_images_limit(self, user_id: int) -> int:
+        return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_LIMIT_KEY) or 0
 
     # Last Interaction
 

@@ -244,6 +244,16 @@ class Bot:
         chat_mode = self.db.get_current_chat_mode(user_id)
 
         if chat_mode == "artist":
+            n_generated_images = self.db.get_n_generated_images(user_id)
+            n_generated_images_limit = self.db.get_n_generated_images_limit(user_id)
+            if n_generated_images >= n_generated_images_limit:
+                username = telegram_utils.get_username(update)
+                language = telegram_utils.get_language(update)
+                self.logger.debug("Image generation limit exceeded for %s", username)
+                reply_text = self.resources.image_generation_limit_exceeded(language)
+                await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+                return
+
             self.logger.debug("Current chat mode is Artist, will generate image")
             await self.generate_image_handle(update, context, message=message)
             return
