@@ -69,8 +69,8 @@ class Firestore:
 
     # User
 
-    def is_user_registered(self, user_id: int, raise_exception: bool = False) -> bool:
-        if self.get_user_snapshot(user_id).exists:
+    def is_user_registered(self, user_id: int, raise_exception: bool = False, read_from_cache: bool = True) -> bool:
+        if self.get_user_snapshot(user_id, read_from_cache).exists:
             return True
 
         if raise_exception:
@@ -114,8 +114,8 @@ class Firestore:
 
     # Dialog
 
-    def start_new_dialog(self, user_id: int) -> str:
-        self.is_user_registered(user_id, raise_exception=True)
+    def start_new_dialog(self, user_id: int, read_from_cache: bool = True) -> str:
+        self.is_user_registered(user_id, raise_exception=True, read_from_cache=read_from_cache)
 
         dialog_id = str(uuid.uuid4())
         chat_mode = self.get_current_chat_mode(user_id)
@@ -253,19 +253,26 @@ class Firestore:
     # If the document does not exist at the time of the snapshot is taken,
     # the snapshot’s reference, data, update_time, and create_time attributes
     # will all be None and its exists attribute will be False.
-    def get_user_snapshot(self, user_id: int):
-        if user_id in self.user_snapshot_cache:
-            # self.logger.debug("Reading from Cache")
+    def get_user_snapshot(self, user_id: int, read_from_cache: bool = True):
+        if read_from_cache and user_id in self.user_snapshot_cache:
+            self.logger.debug("Reading from Cache")
             return self.user_snapshot_cache[user_id]
 
-        # self.logger.debug("Reading from Firestore")
+        self.logger.debug("Reading from Firestore")
 
+        if user_id in self.user_snapshot_watch:
+            self.user_snapshot_watch[user_id].unsubscribe()
+            del self.user_snapshot_watch[user_id]
+
+        # Get a snapshot
         user_ref = self.get_user_ref(user_id)
-        user_snapshot_watch = user_ref.on_snapshot(
-            self.on_user_snapshot_changes)
+        user_snapshot = user_ref.get()
+
+        # Listen to snapshot changes
+        user_snapshot_watch = user_ref.on_snapshot(self.on_user_snapshot_changes)
         self.user_snapshot_watch[user_id] = user_snapshot_watch
 
-        user_snapshot = user_ref.get()
+        # Update snapshot cache
         self.update_user_snapshot_cache(user_id, user_snapshot)
 
         return user_snapshot

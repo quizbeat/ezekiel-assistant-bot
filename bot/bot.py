@@ -94,7 +94,7 @@ class Bot:
                 last_name=user.last_name,
                 current_chat_mode=self.chat_modes.get_default_chat_mode())
 
-            self.db.start_new_dialog(user.id)
+            self.db.start_new_dialog(user.id, read_from_cache=False)
 
         if user.id not in self.user_semaphores:
             self.user_semaphores[user.id] = asyncio.Semaphore(1)
@@ -864,9 +864,7 @@ class Bot:
     async def error_handle(self, update: Update, context: CallbackContext) -> None:
         self.logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-        if update is None or update.effective_chat is None:
-            self.logger.error("Update is None or has no effective chat")
-            return
+        chat_id = int(self.config.bot_admin_id)
 
         try:
             # collect error message
@@ -882,19 +880,19 @@ class Bot:
             for message_chunk in bot_utils.split_into_chunks(message, telegram_utils.MESSAGE_LENGTH_LIMIT):
                 try:
                     await context.bot.send_message(
-                        update.effective_chat.id,
+                        chat_id,
                         message_chunk,
                         parse_mode=ParseMode.HTML)
 
                 except telegram.error.BadRequest:
                     # answer has invalid characters, so we send it without parse_mode
                     await context.bot.send_message(
-                        update.effective_chat.id,
+                        chat_id,
                         message_chunk)
 
         except Exception as e:
             await context.bot.send_message(
-                update.effective_chat.id,
+                chat_id,
                 f"Exception thrown in error handler: {e}")
 
     async def post_init(self, application: Application):
