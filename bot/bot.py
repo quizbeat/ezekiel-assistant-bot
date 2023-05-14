@@ -8,11 +8,6 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
 
-# Health Check
-import http.server
-import socketserver
-import threading
-
 import openai
 import pydub
 
@@ -43,12 +38,12 @@ from bot_resources import BotResources
 from database_factory import DatabaseFactory
 from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
-
 from chat_modes.chat_modes import ChatModes
 
 import openai_utils
 import telegram_utils
 import bot_utils
+import health_check
 
 
 class Bot:
@@ -950,19 +945,6 @@ class Bot:
         application.run_polling()
 
 
-class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-
-
-def run_health_check_server():
-    with socketserver.TCPServer(("", 8080), HealthCheckHandler) as httpd:
-        print("serving at port", 8080)
-        httpd.serve_forever()
-
-
 if __name__ == "__main__":
-    thread = threading.Thread(target=run_health_check_server)
-    thread.start()
+    health_check.start_health_check_thread()
     Bot().run()
