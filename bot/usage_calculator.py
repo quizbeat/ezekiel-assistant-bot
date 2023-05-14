@@ -61,17 +61,17 @@ class UsageCalculator:
         for usage in gpt_models_usage:
             n_total_used_tokens = usage.n_used_input_tokens + usage.n_user_output_tokens
             description += f"💬 {usage.model_name}: "
-            description += f"<b>$ {usage.n_dollars_spent:.03f}</b> "
+            description += f"<b>${usage.n_dollars_spent:.03f}</b> "
             description += f"({self.resources.balance_tokens_used(language, count=n_total_used_tokens)})\n"
 
         if dalle2_usage.n_generated_images > 0:
             description += "🏞️ DALL·E 2: "
-            description += f"<b>$ {dalle2_usage.n_dollars_spent:.03f}</b> "
+            description += f"<b>${dalle2_usage.n_dollars_spent:.03f}</b> "
             description += f"({self.resources.balance_images_generated(language, count=dalle2_usage.n_generated_images)})\n"
 
         if whisper_usage.n_transcribed_seconds > 0:
             description += "🎤 Whisper: "
-            description += f"<b>$ {whisper_usage.n_dollars_spent:.03f}</b> "
+            description += f"<b>${whisper_usage.n_dollars_spent:.03f}</b> "
             description += f"({self.resources.balance_seconds_transcribed(language, count=whisper_usage.n_transcribed_seconds)})\n"
 
         return description

@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
+
 import openai
 import pydub
 
@@ -37,12 +38,12 @@ from bot_resources import BotResources
 from database_factory import DatabaseFactory
 from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
-
 from chat_modes.chat_modes import ChatModes
 
 import openai_utils
 import telegram_utils
 import bot_utils
+import health_check
 
 
 class Bot:
@@ -945,4 +946,5 @@ class Bot:
 
 
 if __name__ == "__main__":
+    health_check.start_health_check_thread()
     Bot().run()
