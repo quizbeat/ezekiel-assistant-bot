@@ -864,11 +864,15 @@ class Bot:
     async def error_handle(self, update: Update, context: CallbackContext) -> None:
         self.logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-        chat_id = int(self.config.bot_admin_id)
+        # if isinstance(context.error, telegram.error.Conflict):
+        #     self.logger.debug("DigitalOcean deploy conflict")
+        #     return
 
-        if isinstance(context.error, telegram.error.Conflict):
-            self.logger.debug("DigitalOcean deploy conflict")
+        if update is None:
+            self.logger.debug("Update is None")
             return
+
+        chat_id = int(self.config.bot_admin_id)
 
         try:
             # collect error message
