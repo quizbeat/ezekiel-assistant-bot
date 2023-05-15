@@ -181,8 +181,8 @@ class Firestore:
 
     # Used Tokens
 
-    def get_n_used_tokens(self, user_id: int):
-        return self.get_user_attribute(user_id, USER_N_USED_TOKENS_KEY)
+    def get_n_used_tokens(self, user_id: int, read_from_cache: bool = False):
+        return self.get_user_attribute(user_id, USER_N_USED_TOKENS_KEY, read_from_cache)
 
     def set_n_used_tokens(self, user_id: int, model: str, n_input_tokens: int, n_output_tokens: int):
         n_used_tokens_dict = self.get_n_used_tokens(user_id)
@@ -201,8 +201,8 @@ class Firestore:
 
     # Transcribed Seconds
 
-    def get_n_transcribed_seconds(self, user_id: int) -> int:
-        return int(self.get_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY) or 0)
+    def get_n_transcribed_seconds(self, user_id: int, read_from_cache: bool = False) -> int:
+        return int(self.get_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, read_from_cache) or 0)
 
     def set_n_transcribed_seconds(self, user_id: int, n_transcribed_seconds: int):
         self.set_user_attribute(
@@ -210,8 +210,8 @@ class Firestore:
 
     # Generated Images
 
-    def get_n_generated_images(self, user_id: int) -> int:
-        return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY) or 0
+    def get_n_generated_images(self, user_id: int, read_from_cache: bool = False) -> int:
+        return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, read_from_cache) or 0
 
     def set_n_generated_images(self, user_id: int, n_generated_images: int):
         self.set_user_attribute(
@@ -256,8 +256,8 @@ class Firestore:
     # If the document does not exist at the time of the snapshot is taken,
     # the snapshot’s reference, data, update_time, and create_time attributes
     # will all be None and its exists attribute will be False.
-    def get_user_snapshot(self, user_id: int):
-        if user_id in self.user_snapshot_cache:
+    def get_user_snapshot(self, user_id: int, read_from_cache: bool = True):
+        if read_from_cache and user_id in self.user_snapshot_cache:
             # self.logger.debug("Reading from Cache")
             return self.user_snapshot_cache[user_id]
 
@@ -311,10 +311,10 @@ class Firestore:
 
     # Attributes Read/Write
 
-    def get_user_attribute(self, user_id: int, key: str) -> Any:
+    def get_user_attribute(self, user_id: int, key: str, read_from_cache: bool = True) -> Any:
         # self.logger.debug("key = %s", key)
 
-        user_dict = self.get_user_snapshot(user_id).to_dict()
+        user_dict = self.get_user_snapshot(user_id, read_from_cache).to_dict()
 
         if key not in user_dict:
             self.logger.error("Unknown key: %s", key)
