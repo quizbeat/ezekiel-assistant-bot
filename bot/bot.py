@@ -917,7 +917,7 @@ class Bot:
             ], language_code=language)
 
         chat_id = int(self.config.bot_admin_id)
-        await application.bot.sendMessage(chat_id, "✅ Redeployed")
+        await application.bot.sendMessage(chat_id, "✅ Started")
 
     def run(self) -> None:
         application = (
