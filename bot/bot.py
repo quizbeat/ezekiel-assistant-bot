@@ -916,6 +916,9 @@ class Bot:
                 BotCommand("/help", self.resources.get_help_command_title(language)),
             ], language_code=language)
 
+        chat_id = int(self.config.bot_admin_id)
+        await application.bot.sendMessage(chat_id, "✅ Redeployed")
+
     def run(self) -> None:
         application = (
             ApplicationBuilder()
