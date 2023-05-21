@@ -844,7 +844,7 @@ class Bot:
         reply_text = "All Users Stats:\n\n"
 
         for user_id in self.db.get_all_users_ids():
-            reply_text += f"{self.db.get_user_username(user_id)}\n"
+            reply_text += f"@{self.db.get_user_username(user_id)}\n"
             usage_description = self.usage_calculator.get_usage_description(user_id, "en")
             reply_text += f"{usage_description}\n\n"
 
