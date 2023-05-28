@@ -39,6 +39,14 @@ class ChatModes:
     def get_chat_modes_count(self, language: Optional[str]) -> int:
         return len(self.get_all_chat_modes(language=language))
 
+    def get_chat_mode_index(self, chat_mode: str, language: Optional[str]) -> int:
+        all_chat_modes = self.get_all_chat_modes(language=language)
+        for index, item in enumerate(all_chat_modes):
+            if item == chat_mode:
+                return index
+
+        return 0
+
     def get_name(self, chat_mode: str, language: Optional[str]) -> str:
         return self._get_value(
             key=CHAT_MODE_NAME_KEY,

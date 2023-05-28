@@ -650,7 +650,7 @@ class Bot:
             reply_text = self.resources.nothing_to_cancel(language)
             await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
-    def get_chat_mode_menu(self, page_index: int, language: Optional[str]):
+    def get_chat_mode_menu(self, page_index: int, current_chat_mode: str, language: Optional[str]):
         n_chat_modes = self.chat_modes.get_chat_modes_count(language)
         n_chat_modes_per_page = self.config.n_chat_modes_per_page
         n_pages = math.ceil(n_chat_modes / n_chat_modes_per_page)
@@ -664,6 +664,8 @@ class Bot:
         keyboard = []
         for chat_mode in page_chat_modes:
             name = self.chat_modes.get_name(chat_mode, language)
+            if chat_mode == current_chat_mode:
+                name = f"✔ {name}"
             callback_data = f"set_chat_mode|{chat_mode}"
             keyboard.append([InlineKeyboardButton(name, callback_data=callback_data)])
 
@@ -695,6 +697,12 @@ class Bot:
 
         return reply_text, reply_markup
 
+    def get_page_index(self, chat_mode: str, language: Optional[str]) -> int:
+        n_chat_modes_per_page = self.config.n_chat_modes_per_page
+        chat_mode_index = self.chat_modes.get_chat_mode_index(chat_mode, language)
+        page_index = chat_mode_index // n_chat_modes_per_page
+        return page_index
+
     async def show_chat_modes_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", telegram_utils.get_username(update))
 
@@ -712,7 +720,8 @@ class Bot:
         self.update_last_interaction(user_id)
 
         language = telegram_utils.get_language(update)
-        reply_text, reply_markup = self.get_chat_mode_menu(0, language)
+        current_chat_mode = self.db.get_current_chat_mode(user_id)
+        reply_text, reply_markup = self.get_chat_mode_menu(0, current_chat_mode, language)
 
         await update.message.reply_text(
             reply_text,
@@ -749,8 +758,11 @@ class Bot:
             self.logger.error("Invalid page index: %d", page_index)
             return
 
+        current_chat_mode = self.db.get_current_chat_mode(user.id)
+
         text, reply_markup = self.get_chat_mode_menu(
             page_index=page_index,
+            current_chat_mode=current_chat_mode,
             language=user.language_code)
 
         try:
@@ -789,6 +801,22 @@ class Bot:
             return
 
         chat_mode = callback_query.data.split("|")[1]
+        page_index = self.get_page_index(chat_mode, user.language_code)
+
+        text, reply_markup = self.get_chat_mode_menu(
+            page_index=page_index,
+            current_chat_mode=chat_mode,
+            language=user.language_code)
+
+        try:
+            await callback_query.edit_message_text(
+                text,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML)
+
+        except telegram.error.BadRequest as e:
+            if str(e).startswith("Message is not modified"):
+                pass
 
         self.update_last_interaction(user.id)
         self.db.set_current_chat_mode(user.id, chat_mode)
