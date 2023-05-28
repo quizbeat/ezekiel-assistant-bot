@@ -80,6 +80,9 @@ class BotResources:
     def image_generation_limit_exceeded(self, language: Optional[str]) -> str:
         return self._get_localized("image_generation_limit_exceeded", language)
 
+    def description(self, language: Optional[str]) -> str:
+        return self._get_localized("description", language)
+
     def welcome_message(self, language: Optional[str]) -> str:
         return self._get_localized("welcome_message", language)
 

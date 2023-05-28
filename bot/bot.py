@@ -143,9 +143,9 @@ class Bot:
         user = update.message.from_user
         self.update_last_interaction(user.id)
 
-        language = telegram_utils.get_language(update)
-        welcome_message = self.resources.welcome_message(language)
-        await update.message.reply_text(welcome_message, parse_mode=ParseMode.HTML)
+        # language = telegram_utils.get_language(update)
+        # welcome_message = self.resources.welcome_message(language)
+        # await update.message.reply_text(welcome_message, parse_mode=ParseMode.HTML)
 
         await self.help_handle(update, context)
         await self.show_chat_modes_handle(update, context)
@@ -651,6 +651,7 @@ class Bot:
             await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     def get_chat_mode_menu(self, page_index: int, language: Optional[str]):
+        self.logger.debug("language %s", language)
         n_chat_modes = self.chat_modes.get_chat_modes_count(language)
         n_chat_modes_per_page = self.config.n_chat_modes_per_page
         n_pages = math.ceil(n_chat_modes / n_chat_modes_per_page)
@@ -981,6 +982,10 @@ class Bot:
                 # BotCommand("/settings", resources.get_settings_command_title(language)),
                 BotCommand("/help", self.resources.get_help_command_title(language)),
             ], language_code=language)
+
+            await application.bot.set_my_description(
+                self.resources.description(language),
+                language_code=language)
 
         chat_id = int(self.config.bot_admin_id)
         await application.bot.sendMessage(chat_id, "✅ Started")

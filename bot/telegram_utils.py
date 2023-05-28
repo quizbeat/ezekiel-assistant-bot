@@ -23,10 +23,10 @@ def get_username(update: Update) -> str:
 
 
 def get_language(source) -> Optional[str]:
-    if source is Update:
+    if isinstance(source, Update):
         return source.message.from_user.language_code
 
-    if source is Message:
+    if isinstance(source, Message):
         return source.from_user.language_code
 
     return None

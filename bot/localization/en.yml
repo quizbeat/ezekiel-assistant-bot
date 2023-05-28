@@ -1,14 +1,17 @@
+description: |
+  Hey there, buddy! 👋 Welcome to your personal assistant chat bot. I'm here to lend a helping hand and make your experience as smooth as possible. Whether you have questions, need information, or just want a chat, I've got your back. Let's dive in and conquer any challenge together! 💪
+
 welcome_message: |
   Hi! I'm <b>Ezekiel</b>, your personal assistant bot 🤖
   Ask me anything you want and I'll help you.
 
 help_message: |
   <b>Commands</b>:
-  • /retry – Regenerate the last response
-  • /new – Start new dialog
-  • /mode – Select chat mode
-  • /balance – Show balance
-  • /help – Show help
+  • /new – Start a New Dialog
+  • /mode – Select Chat Mode
+  • /retry – Regenerate the Last Response
+  • /balance – Show Balance
+  • /help – Show Help
   
   🏞️ Generate images from text prompts in an <b>👩‍🎨 Artist</b> /mode
 
