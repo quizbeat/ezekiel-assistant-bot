@@ -27,12 +27,12 @@ help_message_group_chat: |
   Чтобы получить от меня ответ в групповом чате, просто тэгни меня или ответь на мое сообщение.
   Например: $bot_username напиши поэму о Telegram
 
-command_new: 🆕 Начать новый диалог
-command_mode: 🎛️ Выбрать режим чата
-command_retry: 🔁 Перегенерировать последний ответ
+command_new: 🚀 Начать новый диалог
+command_mode: 🤖 Выбрать режим чата
+command_retry: 🔄 Перегенерировать последний ответ
 command_balance: 💰 Показать баланс
-command_settings: 🛠️ Настройки
-command_help: ℹ️ Помощь
+command_settings: ⚙️ Настройки
+command_help: 💁🏽‍♂️ Помощь
 
 select_chat_mode: 'Выбери <b>режим чата</b> ($count режимов доступно):'
 starting_new_dialog: ✅ Начинаем новый диалог
