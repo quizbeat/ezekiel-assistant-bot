@@ -68,6 +68,9 @@ class BotResources:
     def editing_not_supported(self, language: Optional[str]) -> str:
         return self._get_localized("editing_not_supported", language)
 
+    def cant_return_to_dialog(self, language: Optional[str]) -> str:
+        return self._get_localized("cant_return_to_dialog", language)
+
     def no_message_to_retry(self, language: Optional[str]) -> str:
         return self._get_localized("no_message_to_retry", language)
 

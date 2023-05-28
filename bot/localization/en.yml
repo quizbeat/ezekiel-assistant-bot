@@ -46,6 +46,7 @@ invalid_request: |
   What did you write there, huh?
 nothing_to_cancel: <i>Nothing to cancel…</i>
 editing_not_supported: 🥲 Unfortunately, message <b>editing</b> not supported.
+cant_return_to_dialog: 🥲 Can't return to that dialog, sorry.
 no_message_to_retry: No message to retry 🤷‍♂️
 empty_message_sent: 🥲 You sent an <b>empty message</b>. Please try again!
 image_generation_limit_exceeded: You have exceeded your image generation limit. Contact the bot owner.

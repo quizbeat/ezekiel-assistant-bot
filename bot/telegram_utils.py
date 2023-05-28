@@ -1,5 +1,5 @@
 from typing import Optional
-from telegram import Update
+from telegram import Update, Message
 from telegram.constants import ParseMode
 
 PARSE_MODE_MAPPING = {
@@ -22,11 +22,14 @@ def get_username(update: Update) -> str:
     return update.message.from_user.username or UNKNOWN_USER_USERNAME
 
 
-def get_language(update: Update) -> Optional[str]:
-    if update.message is None or update.message.from_user is None:
-        return None
+def get_language(source) -> Optional[str]:
+    if source is Update:
+        return source.message.from_user.language_code
 
-    return update.message.from_user.language_code
+    if source is Message:
+        return source.from_user.language_code
+
+    return None
 
 
 def get_parse_mode(parse_mode: str) -> ParseMode:

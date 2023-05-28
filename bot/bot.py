@@ -4,6 +4,7 @@ import html
 import json
 import math
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -44,6 +45,12 @@ import openai_utils
 import telegram_utils
 import bot_utils
 import health_check
+
+
+class ChatContextSwitch(Enum):
+    SWITCHED = 1
+    NOT_NEEDED = 2
+    CANT_SWITCH = 3
 
 
 class Bot:
@@ -240,6 +247,11 @@ class Bot:
             self.logger.debug("The previous message has not been answered yet")
             return
 
+        context_switch = await self.switch_context_if_needed(update.message, context)
+
+        if context_switch is ChatContextSwitch.CANT_SWITCH:
+            return
+
         user_id = update.message.from_user.id
         chat_mode = self.db.get_current_chat_mode(user_id)
 
@@ -366,6 +378,7 @@ class Bot:
                 new_dialog_message = {
                     "user": message_text,
                     "bot": answer,
+                    "message_id": placeholder_message.message_id,
                     "date": datetime.now(timezone.utc)
                 }
 
@@ -414,6 +427,58 @@ class Bot:
             finally:
                 if user_id in self.user_tasks:
                     del self.user_tasks[user_id]
+
+    async def switch_context_if_needed(self, message: Message, context: CallbackContext) -> ChatContextSwitch:
+        if message.from_user is None:
+            return ChatContextSwitch.CANT_SWITCH
+
+        user_id = message.from_user.id
+
+        if message.reply_to_message is None:
+            self.logger.debug("There is no reply, context switch not needed")
+            return ChatContextSwitch.NOT_NEEDED
+
+        if message.reply_to_message.from_user is None:
+            self.logger.error("The sender of the message is unknown")
+            return ChatContextSwitch.CANT_SWITCH
+
+        if message.reply_to_message.from_user.id != context.bot.id:
+            self.logger.debug("This is not a reply to a bot's message")
+            return ChatContextSwitch.NOT_NEEDED
+
+        # User has replied to a bot's message.
+        # Check if the message is from a different context.
+
+        reply_to_message_id = message.reply_to_message.message_id
+        current_dialog_id = self.db.get_current_dialog_id(user_id)
+        reply_to_dialog_id = self.db.get_dialog_id(user_id, reply_to_message_id)
+
+        if reply_to_dialog_id is None:
+            language = telegram_utils.get_language(message)
+            reply_text = self.resources.cant_return_to_dialog(language)
+            await message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+            return ChatContextSwitch.CANT_SWITCH
+
+        if reply_to_dialog_id == current_dialog_id:
+            self.logger.debug("This is the same dialog, do nothing")
+            return ChatContextSwitch.NOT_NEEDED
+
+        # reply_text = "✅ Returning back to <b>that</b> dialog…"
+        # await message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+
+        self.db.set_current_dialog_id(user_id, reply_to_dialog_id)
+
+        current_chat_mode = self.db.get_current_chat_mode(user_id)
+        reply_to_chat_mode = self.db.get_chat_mode(user_id, reply_to_dialog_id)
+
+        if reply_to_chat_mode == current_chat_mode:
+            self.logger.debug("The chat mode is the same, do nothing")
+            return ChatContextSwitch.SWITCHED
+
+        self.db.set_current_chat_mode(user_id, reply_to_chat_mode)
+        self.update_last_interaction(user_id)
+
+        return ChatContextSwitch.SWITCHED
 
     async def is_previous_message_not_answered_yet_for_update(self, update: Update) -> bool:
         await self.register_user_if_not_registered_for_update(update)
@@ -844,7 +909,8 @@ class Bot:
         reply_text = "All Users Stats:\n\n"
 
         for user_id in self.db.get_all_users_ids():
-            reply_text += f"@{self.db.get_user_username(user_id)}\n"
+            username = self.db.get_username(user_id) or f"id:{user_id}"
+            reply_text += f"@{username}\n"
             usage_description = self.usage_calculator.get_usage_description(user_id, "en")
             reply_text += f"{usage_description}\n\n"
 

@@ -42,6 +42,11 @@ DIALOG_START_TIME_KEY = "start_time"
 DIALOG_MODEL_KEY = "model"
 DIALOG_MESSAGES_KEY = "messages"
 
+DIALOG_MESSAGE_ID_KEY = "message_id"
+
+# TODO:
+# 1. Listent to a service document for updates
+
 
 class Firestore:
 
@@ -58,19 +63,19 @@ class Firestore:
         self.users_ref = self.db.collection(USERS_COLLECTION_NAME)
         self.config = config
 
-        self.user_snapshot_cache = {}
-        self.user_snapshot_watch = {}
+        # Stores a user dict by a user id
+        self.user_cache = {}
 
         self.logger = LoggerFactory(config).create_logger(__name__)
 
-    def __del__(self):
-        for watch in self.user_snapshot_watch.values():
-            watch.unsubscribe()
+    # def __del__(self):
+    #     for watch in self.user_snapshot_watch.values():
+    #         watch.unsubscribe()
 
     # User
 
     def is_user_registered(self, user_id: int, raise_exception: bool = False) -> bool:
-        if self.get_user_snapshot(user_id).exists:
+        if self._get_user_dict(user_id) is not None:
             return True
 
         if raise_exception:
@@ -114,6 +119,12 @@ class Firestore:
 
     # Dialog
 
+    def get_current_dialog_id(self, user_id: int) -> Optional[str]:
+        return self._get_user_attribute(user_id, USER_CURRENT_DIALOG_ID_KEY)
+
+    def set_current_dialog_id(self, user_id: int, dialog_id: str):
+        self._set_user_attribute(user_id, USER_CURRENT_DIALOG_ID_KEY, dialog_id)
+
     def start_new_dialog(self, user_id: int) -> str:
         self.is_user_registered(user_id, raise_exception=True)
 
@@ -129,7 +140,7 @@ class Firestore:
             DIALOG_MESSAGES_KEY: []
         }
 
-        dialogs_collection = self.get_dialogs_collection(user_id)
+        dialogs_collection = self._get_dialogs_collection(user_id)
         dialog_ref = dialogs_collection.document(f"{dialog_id}")
         dialog_ref.set(dialog_dict)
 
@@ -143,46 +154,71 @@ class Firestore:
         if dialog_id is None:
             dialog_id = self.get_current_dialog_id(user_id)
 
-        dialogs_collection = self.get_dialogs_collection(user_id)
+        dialogs_collection = self._get_dialogs_collection(user_id)
         dialog_ref = dialogs_collection.document(dialog_id)
         dialog_dict = dialog_ref.get().to_dict()
 
-        if dialog_dict is None or DIALOG_MESSAGES_KEY not in dialog_dict:
-            return []
+        messages = dialog_dict.get(DIALOG_MESSAGES_KEY, [])
 
-        return dialog_dict[DIALOG_MESSAGES_KEY] or []
+        return messages
 
-    def set_dialog_messages(self, user_id: int, dialog_messages: list, dialog_id: Optional[str] = None):
+    def set_dialog_messages(self, user_id: int, messages: list, dialog_id: Optional[str] = None):
         self.is_user_registered(user_id, raise_exception=True)
 
         if dialog_id is None:
             dialog_id = self.get_current_dialog_id(user_id)
 
-        dialogs_collection = self.get_dialogs_collection(user_id)
+        dialogs_collection = self._get_dialogs_collection(user_id)
         dialog_ref = dialogs_collection.document(dialog_id)
-        dialog_ref.update({DIALOG_MESSAGES_KEY: dialog_messages})
+        dialog_ref.update({DIALOG_MESSAGES_KEY: messages})
+
+    def get_dialog_id(self, user_id: int, message_id: int) -> Optional[str]:
+        # TODO: Improve performance
+        dialogs_collection = self._get_dialogs_collection(user_id)
+        for dialog in dialogs_collection.get():
+            messages = dialog.to_dict()[DIALOG_MESSAGES_KEY]
+            for message in messages:
+                if message.get(DIALOG_MESSAGE_ID_KEY) == message_id:
+                    return dialog.id
+
+        self.logger.warning("Dialog id for a message %d not found", message_id)
+
+        return None
 
     # Current Model
 
     def get_current_model(self, user_id: int) -> str:
-        return self.get_user_attribute(user_id, USER_CURRENT_MODEL_KEY) or self.config.get_default_model()
+        current_model = self._get_user_attribute(user_id, USER_CURRENT_MODEL_KEY)
+
+        if current_model is None:
+            self.logger.debug("Stored current model is None, assuming a default value")
+            current_model = self.config.get_default_model()
+
+        return current_model
 
     def set_current_model(self, user_id: int, current_model: str):
-        self.set_user_attribute(user_id, USER_CURRENT_MODEL_KEY, current_model)
+        self._set_user_attribute(user_id, USER_CURRENT_MODEL_KEY, current_model)
 
     # Current Chat Mode
 
+    def get_chat_mode(self, user_id: int, dialog_id: str) -> str:
+        dialogs_collection = self._get_dialogs_collection(user_id)
+        dialog_ref = dialogs_collection.document(dialog_id)
+        dialog_dict = dialog_ref.get().to_dict()
+        chat_mode = dialog_dict.get(DIALOG_CHAT_MODE_KEY)
+        return chat_mode
+
     def get_current_chat_mode(self, user_id: int) -> str:
-        return self.get_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY)
+        chat_mode = self._get_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY)
+        return chat_mode
 
     def set_current_chat_mode(self, user_id: int, current_chat_mode: str):
-        self.set_user_attribute(
-            user_id, USER_CURRENT_CHAT_MODE_KEY, current_chat_mode)
+        self._set_user_attribute(user_id, USER_CURRENT_CHAT_MODE_KEY, current_chat_mode)
 
     # Used Tokens
 
-    def get_n_used_tokens(self, user_id: int, read_from_cache: bool = False):
-        return self.get_user_attribute(user_id, USER_N_USED_TOKENS_KEY, read_from_cache)
+    def get_n_used_tokens(self, user_id: int, from_cache: bool = False):
+        return self._get_user_attribute(user_id, USER_N_USED_TOKENS_KEY, from_cache)
 
     def set_n_used_tokens(self, user_id: int, model: str, n_input_tokens: int, n_output_tokens: int):
         n_used_tokens_dict = self.get_n_used_tokens(user_id)
@@ -196,132 +232,114 @@ class Firestore:
                 USER_N_USED_TOKENS_OUTPUT_KEY: n_output_tokens
             }
 
-        self.set_user_attribute(
-            user_id, USER_N_USED_TOKENS_KEY, n_used_tokens_dict)
+        self._set_user_attribute(user_id, USER_N_USED_TOKENS_KEY, n_used_tokens_dict)
 
     # Transcribed Seconds
 
-    def get_n_transcribed_seconds(self, user_id: int, read_from_cache: bool = False) -> int:
-        return int(self.get_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, read_from_cache) or 0)
+    def get_n_transcribed_seconds(self, user_id: int, from_cache: bool = False) -> int:
+        return int(self._get_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, from_cache) or 0)
 
     def set_n_transcribed_seconds(self, user_id: int, n_transcribed_seconds: int):
-        self.set_user_attribute(
-            user_id, USER_N_TRANSCRIBED_SECONDS_KEY, n_transcribed_seconds)
+        self._set_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, n_transcribed_seconds)
 
     # Generated Images
 
-    def get_n_generated_images(self, user_id: int, read_from_cache: bool = False) -> int:
-        return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, read_from_cache) or 0
+    def get_n_generated_images(self, user_id: int, from_cache: bool = False) -> int:
+        return self._get_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, from_cache) or 0
 
     def set_n_generated_images(self, user_id: int, n_generated_images: int):
-        self.set_user_attribute(
-            user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
+        self._set_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
 
     def get_n_generated_images_limit(self, user_id: int) -> int:
-        return self.get_user_attribute(user_id, USER_N_GENERATED_IMAGES_LIMIT_KEY) or 0
+        return self._get_user_attribute(user_id, USER_N_GENERATED_IMAGES_LIMIT_KEY) or 0
 
     # Last Interaction
 
     def get_last_interaction(self, user_id: int) -> datetime:
-        google_last_interaction = self.get_user_attribute(
-            user_id, USER_LAST_INTERACTION_KEY)
-        last_interaction = datetime.fromisoformat(
-            google_last_interaction.isoformat())
+        google_last_interaction = self._get_user_attribute(user_id, USER_LAST_INTERACTION_KEY)
+        last_interaction = datetime.fromisoformat(google_last_interaction.isoformat())
         return last_interaction
 
     def set_last_interaction(self, user_id: int, last_interaction: datetime):
-        self.set_user_attribute(
-            user_id, USER_LAST_INTERACTION_KEY, last_interaction)
+        self._set_user_attribute(user_id, USER_LAST_INTERACTION_KEY, last_interaction)
 
     # Admin Stats
 
     def get_all_users_ids(self) -> List[int]:
         users_stream = self.users_ref.stream()
 
-        ids = []
+        user_ids = []
         for user in users_stream:
-            ids.append(user.id)
+            user_ids.append(int(user.id))
 
-        return ids
+        return user_ids
 
-    def get_user_username(self, user_id: int) -> str:
-        return self.get_user_attribute(user_id, "username") or f"id:{user_id}"
+    def get_username(self, user_id: int) -> Optional[str]:
+        return self._get_user_attribute(user_id, USER_USERNAME_KEY)
 
     # Private
 
-    def get_user_ref(self, user_id: int):
+    def _get_user_ref(self, user_id: int):
         return self.users_ref.document(f"{user_id}")
 
-    # Returns a snapshot of the current document.
-    # If the document does not exist at the time of the snapshot is taken,
-    # the snapshot’s reference, data, update_time, and create_time attributes
-    # will all be None and its exists attribute will be False.
-    def get_user_snapshot(self, user_id: int, read_from_cache: bool = True):
-        if read_from_cache and user_id in self.user_snapshot_cache:
-            # self.logger.debug("Reading from Cache")
-            return self.user_snapshot_cache[user_id]
+    def _get_user_dict(self, user_id: int, from_cache: bool = True) -> Optional[dict]:
+        if from_cache and user_id in self.user_cache:
+            return self.user_cache.get(user_id)
 
-        # self.logger.debug("Reading from Firestore")
+        self.logger.debug("Reading from Firestore for the user %d", user_id)
 
-        if user_id in self.user_snapshot_watch:
-            self.user_snapshot_watch[user_id].unsubscribe()
-            del self.user_snapshot_watch[user_id]
+        user_ref = self._get_user_ref(user_id)
 
-        # Get a snapshot
-        user_ref = self.get_user_ref(user_id)
+        # Read a snapshot from Firestore
         user_snapshot = user_ref.get()
 
+        # If the document does not exist at the time of the snapshot is taken,
+        # the snapshot’s reference, data, update_time, and create_time attributes
+        # will all be None and its exists attribute will be False.
+
         if not user_snapshot.exists:
-            # Do not cache a snapshot of an unexistent user.
-            return user_snapshot
+            self.logger.debug("User with id %d does not exist, do not cache the snapshot", user_id)
+            return None
 
-        # Listen to snapshot changes
-        user_snapshot_watch = user_ref.on_snapshot(self.on_user_snapshot_changes)
-        self.user_snapshot_watch[user_id] = user_snapshot_watch
+        self._update_user_cache(user_id, user_snapshot)
 
-        # Update snapshot cache
-        self.update_user_snapshot_cache(user_id, user_snapshot)
+        return self.user_cache.get(user_id)
 
-        return user_snapshot
+    # def on_user_snapshot_changes(self, snapshots, changes, read_time):
+    #     self.logger.debug("Got user snapshot update event")
 
-    def on_user_snapshot_changes(self, snapshots, changes, read_time):
-        if len(snapshots) == 0:
-            self.logger.error("received an empty snapshot list")
-            return
+    #     for change in changes:
+    #         self.logger.debug("Change: %s", change.to_dict())
 
-        user_snapshot = snapshots[0]
-        user_id = int(user_snapshot.id)
-        self.update_user_snapshot_cache(user_id, user_snapshot)
+    #     self.logger.debug("Read Time: %s", read_time)
 
-    def update_user_snapshot_cache(self, user_id: int, user_snapshot):
-        self.user_snapshot_cache[user_id] = user_snapshot
-        # self.logger.debug("User shapshot cache updated")
+    #     if len(snapshots) == 0:
+    #         self.logger.error("Received an empty snapshot list")
+    #         return
+
+    #     user_snapshot = snapshots[0]
+    #     user_id = int(user_snapshot.id)
+    #     self.update_user_cache(user_id, user_snapshot)
+
+    def _update_user_cache(self, user_id: int, user_snapshot):
+        self.user_cache[user_id] = user_snapshot.to_dict()
 
     # Dialogs
 
-    def get_current_dialog_id(self, user_id: int) -> Optional[str]:
-        return self.get_user_attribute(user_id, USER_CURRENT_DIALOG_ID_KEY)
-
-    def set_current_dialog_id(self, user_id: int, dialog_id: str):
-        self.set_user_attribute(user_id, USER_CURRENT_DIALOG_ID_KEY, dialog_id)
-
-    # TODO: Declare the return value type
-    def get_dialogs_collection(self, user_id: int):
-        return self.get_user_ref(user_id).collection(DIALOGS_COLLECTION_NAME)
+    def _get_dialogs_collection(self, user_id: int):
+        return self._get_user_ref(user_id).collection(DIALOGS_COLLECTION_NAME)
 
     # Attributes Read/Write
 
-    def get_user_attribute(self, user_id: int, key: str, read_from_cache: bool = True) -> Any:
-        # self.logger.debug("key = %s", key)
+    def _get_user_attribute(self, user_id: int, key: str, from_cache: bool = True) -> Any:
+        user_dict = self._get_user_dict(user_id, from_cache) or {}
+        return user_dict.get(key)
 
-        user_dict = self.get_user_snapshot(user_id, read_from_cache).to_dict()
+    def _set_user_attribute(self, user_id: int, key: str, value: Any):
+        update_dict = {key: value}
 
-        if key not in user_dict:
-            self.logger.error("Unknown key: %s", key)
-            return None
+        if user_id in self.user_cache:
+            self.user_cache[user_id].update(update_dict)
 
-        return user_dict[key]
-
-    def set_user_attribute(self, user_id: int, key: str, value: Any):
-        # self.logger.debug("key = %s", key)
-        self.get_user_ref(user_id).update({key: value})
+        self._get_user_ref(user_id).update(update_dict)
+        self.logger.debug("Did set %s", update_dict)
