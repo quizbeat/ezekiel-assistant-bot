@@ -148,7 +148,7 @@ class Bot:
         # await update.message.reply_text(welcome_message, parse_mode=ParseMode.HTML)
 
         await self.help_handle(update, context)
-        await self.show_chat_modes_handle(update, context)
+        # await self.show_chat_modes_handle(update, context)
 
     async def help_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", telegram_utils.get_username(update))
@@ -651,7 +651,6 @@ class Bot:
             await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     def get_chat_mode_menu(self, page_index: int, language: Optional[str]):
-        self.logger.debug("language %s", language)
         n_chat_modes = self.chat_modes.get_chat_modes_count(language)
         n_chat_modes_per_page = self.config.n_chat_modes_per_page
         n_pages = math.ceil(n_chat_modes / n_chat_modes_per_page)
