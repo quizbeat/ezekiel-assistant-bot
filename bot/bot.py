@@ -1052,11 +1052,11 @@ class Bot:
         admin_filter = filters.User(user_id=self.config.bot_admin_id)
         application.add_handler(CommandHandler("stats", self.show_stats_handle, filters=admin_filter))
 
-        # NOTE: Model selection is temporarily disabled until access to GTP-4 is granted.
+        # NOTE: Model selection is temporarily disabled until access to GPT-4 is granted.
         # application.add_handler(CommandHandler("settings", settings_handle, filters=user_filter))
         # application.add_handler(CallbackQueryHandler(set_settings_handle, pattern="^set_settings"))
 
-        application.add_handler(CommandHandler("balance", self.show_balance_handle, filters=user_filter))
+        application.add_handler(CommandHandler("balance", self.show_balance_handle, filters=admin_filter))
 
         application.add_error_handler(self.error_handle)
 

@@ -22,14 +22,14 @@ def get_username(update: Update) -> str:
     return update.message.from_user.username or UNKNOWN_USER_USERNAME
 
 
-def get_language(source) -> Optional[str]:
+def get_language(source: Update | Message) -> Optional[str]:
     if isinstance(source, Update):
         return source.message.from_user.language_code
 
     if isinstance(source, Message):
         return source.from_user.language_code
 
-    return None
+    raise ValueError("Expected an Update or a Message object")
 
 
 def get_parse_mode(parse_mode: str) -> ParseMode:
