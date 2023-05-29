@@ -1005,7 +1005,7 @@ class Bot:
                 BotCommand("/new", self.resources.get_new_command_title(language)),
                 BotCommand("/mode", self.resources.get_mode_command_title(language)),
                 BotCommand("/retry", self.resources.get_retry_command_title(language)),
-                BotCommand("/balance", self.resources.get_balance_command_title(language)),
+                # BotCommand("/balance", self.resources.get_balance_command_title(language)),
                 # BotCommand("/settings", resources.get_settings_command_title(language)),
                 BotCommand("/help", self.resources.get_help_command_title(language)),
             ], language_code=language)
