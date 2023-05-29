@@ -10,18 +10,23 @@ welcome_message: |
   Ask me anything you want and I'll help you.
 
 help_message: |
-  <b>Commands</b>:
-  • /new – Start a New Dialog
-  • /mode – Select Chat Mode
-  • /retry – Regenerate the Last Response
-  • /balance – Show Balance
-  • /help – Show Help
+  <b>💁🏽‍♂️ How to use?</b>
+
+  💬 Just send me your question and I will start a dialog with you.
   
-  🏞️ Generate images from text prompts in an <b>👩‍🎨 Artist</b> /mode
+  🚀 If you have a question on another topic, then start a <b>new dialog</b>. To do this, in the <b>Menu</b> select the command <b>Start New Dialog</b>.
 
-  👥 Add me to a <b>group chat</b> (learn more /help_group_chat)
+  🤖 In order for me to give you more accurate answers, you can choose one of the available <b>chat modes</b>. You can view and select a chat mode through the <b>Menu</b> using the command <b>Select Chat Mode</b>. If none of the modes seemed suitable for you, just choose the <b>🧔🏽‍♂️ Assistant</b> mode, it is the very first one in the list.
 
-  🎤 Send <b>Voice Messages</b> instead of text
+  🏞️ In the <b>👨🏽‍🎨 Artist</b> mode, I can create pictures by text description. To do this, select the mode <b>👨🏽‍🎨 Artist</b> in the chat mode selection menu and send me a description of what you want to draw.
+
+  🎤 You can send me <b>voice messages</b> instead of text. I will listen and answer your questions.
+
+  ⏪ You can always go back to previous dialogues. To do this, simply answer my message from the desired dialogue and we will continue to communicate on that topic.
+
+  🔄 If you are not satisfied with my answer, I can try to formulate the answer in a different way. To do this, select the <b>Menu</b> command <b>Regenerate Last Response</b>.
+
+  💁🏽‍♂️ If you need help again, just select the command <b>Show Help</b> in the <b>Menu</b>.
 
 help_message_group_chat: |
   You can add me to any <b>group chat</b> to help and entertain its participants!
