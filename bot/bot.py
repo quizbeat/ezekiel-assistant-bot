@@ -459,6 +459,10 @@ class Bot:
             await message.reply_text(reply_text, parse_mode=ParseMode.HTML)
             return ChatContextSwitch.CANT_SWITCH
 
+        # Should update last interaction here, otherwise if this is the same dialog,
+        # the bot will start a new dialog due to timeout if exceeded.
+        self.update_last_interaction(user_id)
+
         if reply_to_dialog_id == current_dialog_id:
             self.logger.debug("This is the same dialog, do nothing")
             return ChatContextSwitch.NOT_NEEDED
@@ -476,7 +480,6 @@ class Bot:
             return ChatContextSwitch.SWITCHED
 
         self.db.set_current_chat_mode(user_id, reply_to_chat_mode)
-        self.update_last_interaction(user_id)
 
         return ChatContextSwitch.SWITCHED
 
