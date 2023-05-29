@@ -997,25 +997,51 @@ class Bot:
                 chat_id,
                 f"Exception thrown in error handler: {e}")
 
+    async def set_commands(
+        self,
+        application: Application,
+        command_language: str,
+        user_language: str = ""
+    ):
+        await application.bot.set_my_commands([
+            BotCommand("/new", self.resources.get_new_command_title(command_language)),
+            BotCommand("/mode", self.resources.get_mode_command_title(command_language)),
+            BotCommand("/retry", self.resources.get_retry_command_title(command_language)),
+            # BotCommand("/balance", self.resources.get_balance_command_title(command_language)),
+            # BotCommand("/settings", resources.get_settings_command_title(command_language)),
+            BotCommand("/help", self.resources.get_help_command_title(command_language)),
+        ], language_code=user_language)
+
+    async def set_description(
+        self,
+        application: Application,
+        description_language: str,
+        user_language: str = ""
+    ):
+        await application.bot.set_my_description(
+            self.resources.description(description_language),
+            language_code=user_language)
+
     async def post_init(self, application: Application):
         self.logger.debug(self.resources.get_supported_languages())
 
+        # Setup supported languages
         for language in self.resources.get_supported_languages():
-            await application.bot.set_my_commands([
-                BotCommand("/new", self.resources.get_new_command_title(language)),
-                BotCommand("/mode", self.resources.get_mode_command_title(language)),
-                BotCommand("/retry", self.resources.get_retry_command_title(language)),
-                # BotCommand("/balance", self.resources.get_balance_command_title(language)),
-                # BotCommand("/settings", resources.get_settings_command_title(language)),
-                BotCommand("/help", self.resources.get_help_command_title(language)),
-            ], language_code=language)
+            await self.set_commands(application, language, language)
+            await self.set_description(application, language, language)
 
             await application.bot.set_my_description(
                 self.resources.description(language),
                 language_code=language)
 
+        # Setup other languages
+        default_language = "en"
+        await self.set_commands(application, default_language)
+        await self.set_description(application, default_language)
+
+        # Notify admin
         chat_id = int(self.config.bot_admin_id)
-        await application.bot.sendMessage(chat_id, "✅ Started")
+        await application.bot.sendMessage(chat_id, "🚀 Started")
 
     def run(self) -> None:
         application = (
