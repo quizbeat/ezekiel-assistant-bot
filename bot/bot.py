@@ -132,7 +132,7 @@ class Bot:
         return True
 
     async def start_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -151,7 +151,7 @@ class Bot:
         # await self.show_chat_modes_handle(update, context)
 
     async def help_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -235,7 +235,7 @@ class Bot:
 
         message_text = message or update.message.text or ""
 
-        self.logger.debug("%s sent \"%s\"", telegram_utils.get_username(update), message_text)
+        self.logger.debug("%s sent \"%s\"", telegram_utils.get_username_or_id(update), message_text)
 
         # remove bot mention (in group chats)
         if update.message.chat.type != "private":
@@ -259,7 +259,7 @@ class Bot:
             n_generated_images = self.db.get_n_generated_images(user_id)
             n_generated_images_limit = self.db.get_n_generated_images_limit(user_id)
             if n_generated_images >= n_generated_images_limit:
-                username = telegram_utils.get_username(update)
+                username = telegram_utils.get_username_or_id(update)
                 language = telegram_utils.get_language(update)
                 self.logger.debug("Image generation limit exceeded for %s", username)
                 reply_text = self.resources.image_generation_limit_exceeded(language)
@@ -394,9 +394,10 @@ class Bot:
                 raise
 
             except Exception as e:
-                error_text = f"Something went wrong during completion. Reason: {e}"
+                user_info = telegram_utils.get_username_or_id(update)
+                error_text = f"User {user_info} got an exception during completion: {e}"
                 self.logger.error(error_text)
-                await update.message.reply_text(error_text)
+                # TODO: Notify the admin
                 return
 
             # send message if some messages were removed from the context
@@ -562,7 +563,7 @@ class Bot:
         reply_text = f"🎤: <i>{transcribed_text}</i>"
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
-        self.logger.debug("%s sent voice \"%s\"", telegram_utils.get_username(update), transcribed_text)
+        self.logger.debug("%s sent voice \"%s\"", telegram_utils.get_username_or_id(update), transcribed_text)
 
         current_n_transcribed_seconds = self.db.get_n_transcribed_seconds(user_id)
         new_n_transcribed_seconds = current_n_transcribed_seconds + voice.duration
@@ -707,7 +708,7 @@ class Bot:
         return page_index
 
     async def show_chat_modes_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -860,7 +861,7 @@ class Bot:
         return text, reply_markup
 
     async def settings_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -916,7 +917,7 @@ class Bot:
                 pass
 
     async def show_balance_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
 
@@ -931,7 +932,7 @@ class Bot:
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def show_stats_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         if update.message is None:
             self.logger.error("Update has no message")
@@ -948,7 +949,7 @@ class Bot:
         await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
 
     async def edited_message_handle(self, update: Update, context: CallbackContext):
-        self.logger.debug("called for %s", telegram_utils.get_username(update))
+        self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         if update.edited_message is None:
             self.logger.error("Update has no edited message")
@@ -1053,8 +1054,7 @@ class Bot:
             .concurrent_updates(True)
             .rate_limiter(AIORateLimiter(max_retries=5))
             .post_init(self.post_init)
-            .build()
-        )
+            .build())
 
         # add handlers
         user_filter = filters.ALL

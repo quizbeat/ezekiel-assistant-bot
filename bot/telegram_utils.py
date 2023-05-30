@@ -9,17 +9,33 @@ PARSE_MODE_MAPPING = {
 
 MESSAGE_LENGTH_LIMIT = 4096
 
-UNKNOWN_USER_USERNAME = "unknown user"
+
+def get_username_or_id(update: Update) -> str:
+    username = get_username(update)
+    if username is not None:
+        return username
+
+    return str(get_user_id(update))
 
 
-def get_username(update: Update) -> str:
+def get_username(update: Update) -> Optional[str]:
     if update.edited_message is not None and update.edited_message.from_user is not None:
-        return update.edited_message.from_user.username or UNKNOWN_USER_USERNAME
+        return update.edited_message.from_user.username
 
     if update.message is None or update.message.from_user is None:
-        return UNKNOWN_USER_USERNAME
+        return None
 
-    return update.message.from_user.username or UNKNOWN_USER_USERNAME
+    return update.message.from_user.username
+
+
+def get_user_id(update: Update) -> int:
+    if update.edited_message is not None and update.edited_message.from_user is not None:
+        return update.edited_message.from_user.id
+
+    if update.message is None or update.message.from_user is None:
+        return 0
+
+    return update.message.from_user.id
 
 
 def get_language(source) -> Optional[str]:
