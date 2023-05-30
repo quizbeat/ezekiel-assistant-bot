@@ -44,7 +44,7 @@ command_mode: 🤖 Select Chat Mode
 command_retry: 🔄 Regenerate Last Response
 command_balance: 💰 Show Balance
 command_settings: ⚙️ Show Settings
-command_help: 💁🏽‍♂️ Show Help
+command_help: 💁 Show Help
 
 select_chat_mode: 'Select <b>chat mode</b> ($count modes available):'
 starting_new_dialog: 🚀 Starting a new dialog
