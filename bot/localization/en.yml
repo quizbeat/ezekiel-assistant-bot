@@ -10,23 +10,23 @@ welcome_message: |
   Ask me anything you want and I'll help you.
 
 help_message: |
-  <b>💁🏽‍♂️ How to use?</b>
+  <b>💁 How to use?</b>
 
   💬 Just send me your question and I will start a dialog with you.
   
   🚀 If you have a question on another topic, then start a <b>new dialog</b>. To do this, in the <b>Menu</b> select the command <b>Start New Dialog</b>.
 
-  🤖 In order for me to give you more accurate answers, you can choose one of the available <b>chat modes</b>. You can view and select a chat mode through the <b>Menu</b> using the command <b>Select Chat Mode</b>. If none of the modes seemed suitable for you, just choose the <b>🧔🏽‍♂️ Assistant</b> mode, it is the very first one in the list.
+  🤖 In order for me to give you more accurate answers, you can choose one of the available <b>chat modes</b>. You can view and select a chat mode through the <b>Menu</b> using the command <b>Select Chat Mode</b>. If none of the modes seemed suitable for you, just choose the <b>🤵‍♂️ General Assistant</b> mode, it is the very first one in the list.
 
-  🏞️ In the <b>👨🏽‍🎨 Artist</b> mode, I can create pictures by text description. To do this, select the mode <b>👨🏽‍🎨 Artist</b> in the chat mode selection menu and send me a description of what you want to draw.
+  🏞️ In the <b>🧑‍🎨 Artist</b> mode, I can create pictures by text description. To do this, select the mode <b>🧑‍🎨 Artist</b> in the chat mode selection menu and send me a description of what you want to draw.
 
   🎤 You can send me <b>voice messages</b> instead of text. I will listen and answer your questions.
 
-  ⏪ You can always go back to previous dialogues. To do this, simply answer my message from the desired dialogue and we will continue to communicate on that topic.
+  ⏪ You can always go back to previous dialogs. To do this, simply answer my message from the desired dialog and we will continue to communicate on that topic.
 
   🔄 If you are not satisfied with my answer, I can try to formulate the answer in a different way. To do this, select the <b>Menu</b> command <b>Regenerate Last Response</b>.
 
-  💁🏽‍♂️ If you need help again, just select the command <b>Show Help</b> in the <b>Menu</b>.
+  💁 If you need help again, just select the command <b>Show Help</b> in the <b>Menu</b>.
 
 help_message_group_chat: |
   You can add me to any <b>group chat</b> to help and entertain its participants!
@@ -47,9 +47,9 @@ command_settings: ⚙️ Show Settings
 command_help: 💁🏽‍♂️ Show Help
 
 select_chat_mode: 'Select <b>chat mode</b> ($count modes available):'
-starting_new_dialog: ✅ Starting a new dialog
-starting_new_dialog_due_to_timeout: ✅ Starting new dialog due to timeout (<b>$chat_mode_name</b> mode)
-dialog_cancelled: ✅ Cancelled
+starting_new_dialog: 🚀 Starting a new dialog
+starting_new_dialog_due_to_timeout: 🚀 Starting new dialog due to timeout (<b>$chat_mode_name</b> mode)
+dialog_cancelled: 🙅‍♂️ Cancelled
 wait_for_reply: |
   ⏳ Please <b>wait</b> for a reply to the previous message
   Or /cancel it.
@@ -70,10 +70,10 @@ balance_seconds_transcribed: $count seconds
 
 dialog_is_too_long:
   one: | 
-    ✍🏼 <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.
+    ✍️ <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.
     
     Send /new command to start a new dialog.
   other: |
-    ✍🏼 <i>Note:</i> Your current dialog is too long, so <b>$count first messages</b> were removed from the context.
+    ✍️ <i>Note:</i> Your current dialog is too long, so <b>$count first messages</b> were removed from the context.
     
     Send /new command to start a new dialog.
