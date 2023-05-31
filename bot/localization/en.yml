@@ -16,17 +16,17 @@ help_message: |
   
   🚀 If you have a question on another topic, then start a <b>new dialog</b>. To do this, in the <b>Menu</b> select the command <b>Start New Dialog</b>.
 
-  🤖 In order for me to give you more accurate answers, you can choose one of the available <b>chat modes</b>. You can view and select a chat mode through the <b>Menu</b> using the command <b>Select Chat Mode</b>. If none of the modes seemed suitable for you, just choose the <b>🤵‍♂️ General Assistant</b> mode, it is the very first one in the list.
+  🤖 To provide you with more precise responses, you have the option to select from the available <b>chat modes</b>. To view and choose a chat mode, access the <b>Menu</b> and use the command <b>Select Chat Mode</b>. In case none of the modes seem suitable, you can simply choose the <b>🤵‍♂️ General Assistant</b> mode, which is listed first.
 
-  🏞️ In the <b>🧑‍🎨 Artist</b> mode, I can create pictures by text description. To do this, select the mode <b>🧑‍🎨 Artist</b> in the chat mode selection menu and send me a description of what you want to draw.
+  🏞️ In the <b>🧑‍🎨 Artist</b> mode, I can produce illustrations based on textual descriptions. To utilize this feature, select the <b>🧑‍🎨 Artist</b> mode from the chat mode selection menu and provide me with a description of the desired image.
 
-  🎤 You can send me <b>voice messages</b> instead of text. I will listen and answer your questions.
+  🎤 You have the option to send me <b>voice messages</b> instead of written text. I will attentively listen and provide responses to your inquiries.
 
-  ⏪ You can always go back to previous dialogs. To do this, simply answer my message from the desired dialog and we will continue to communicate on that topic.
+  ⏪ It is always possible to revisit previous conversations. To do so, simply reply to my message from the relevant conversation and we will resume discussing the topic.
 
-  🔄 If you are not satisfied with my answer, I can try to formulate the answer in a different way. To do this, select the <b>Menu</b> command <b>Regenerate Last Response</b>.
+  🔄 If you are dissatisfied with my response, I can attempt to rephrase it differently. To do so, choose the <b>Regenerate Last Response</b> command from the <b>Menu</b>.
 
-  💁 If you need help again, just select the command <b>Show Help</b> in the <b>Menu</b>.
+  💁 If you require assistance again, simply choose the command <b>Show Help</b> from the <b>Menu</b>.
 
 help_message_group_chat: |
   You can add me to any <b>group chat</b> to help and entertain its participants!
