@@ -395,9 +395,11 @@ class Bot:
 
             except Exception as e:
                 user_info = telegram_utils.get_username_or_id(update)
-                error_text = f"User {user_info} got an exception during completion: {e}"
-                self.logger.error(error_text)
-                # TODO: Notify the admin
+                error_message = f"User {user_info} got an exception during completion: {e}"
+                self.logger.error(error_message)
+                language = telegram_utils.get_language(update)
+                reply_text = self.resources.completion_error(language)
+                await update.message.reply_text(reply_text)
                 return
 
             # send message if some messages were removed from the context

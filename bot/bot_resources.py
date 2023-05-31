@@ -71,6 +71,9 @@ class BotResources:
     def cant_return_to_dialog(self, language: Optional[str]) -> str:
         return self._get_localized("cant_return_to_dialog", language)
 
+    def completion_error(self, language: Optional[str]) -> str:
+        return self._get_localized("completion_error", language)
+
     def no_message_to_retry(self, language: Optional[str]) -> str:
         return self._get_localized("no_message_to_retry", language)
 
