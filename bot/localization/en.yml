@@ -62,7 +62,10 @@ cant_return_to_dialog: 🥲 Can't return to that dialog, sorry.
 completion_error: 🥲 Unfortunately, an error occurred on my end. Would you kindly repeat your question?
 no_message_to_retry: No message to retry 🤷‍♂️
 empty_message_sent: 🥲 You sent an <b>empty message</b>. Please try again!
-image_generation_limit_exceeded: You have exceeded your image generation limit. Contact the bot owner.
+
+tokens_limit_reached: 🥲 You have reached the usage limit. Please contact the bot owner.
+image_generation_limit_reached: 🥲 You have reached the image generation limit. Please contact the bot owner.
+voice_recognition_limit_reached: 🥲 You have reached the voice recognition limit. Please contact the bot owner.
 
 balance_you_spent: "🧾 You have spent"
 balance_tokens_used: $count tokens

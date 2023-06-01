@@ -31,10 +31,16 @@ USER_CURRENT_MODEL_KEY = "current_model"
 USER_N_USED_TOKENS_KEY = "n_used_tokens"
 USER_N_USED_TOKENS_INPUT_KEY = "n_input_tokens"
 USER_N_USED_TOKENS_OUTPUT_KEY = "n_output_tokens"
+USER_N_REMAINING_TOKENS_KEY = "n_remaining_tokens"
+USER_N_REMAINING_TOKENS_INITIAL_VALUE = 50000
 
 USER_N_GENERATED_IMAGES_KEY = "n_generated_images"
-USER_N_GENERATED_IMAGES_LIMIT_KEY = "n_generated_images_limit"
+USER_N_REMAINING_GENERATED_IMAGES_KEY = "n_remaining_generated_images"
+USER_N_REMAINING_GENERATED_IMAGES_INITIAL_VALUE = 5
+
 USER_N_TRANSCRIBED_SECONDS_KEY = "n_transcribed_seconds"
+USER_N_REMAINING_TRANSCRIBED_SECONDS_KEY = "n_remaining_transcribed_seconds"
+USER_N_REMAINING_TRANSCRIBED_SECONDS_INITIAL_VALUE = 30
 
 DIALOGS_COLLECTION_NAME = "dialogs"
 DIALOG_CHAT_MODE_KEY = "chat_mode"
@@ -43,9 +49,6 @@ DIALOG_MODEL_KEY = "model"
 DIALOG_MESSAGES_KEY = "messages"
 
 DIALOG_MESSAGE_ID_KEY = "message_id"
-
-# TODO:
-# 1. Listent to a service document for updates
 
 
 class Firestore:
@@ -111,9 +114,13 @@ class Firestore:
             USER_CURRENT_MODEL_KEY: current_model,
 
             USER_N_USED_TOKENS_KEY: {},
+            USER_N_REMAINING_TOKENS_KEY: USER_N_REMAINING_TOKENS_INITIAL_VALUE,
+
             USER_N_GENERATED_IMAGES_KEY: 0,
-            USER_N_GENERATED_IMAGES_LIMIT_KEY: 10,
-            USER_N_TRANSCRIBED_SECONDS_KEY: 0
+            USER_N_REMAINING_GENERATED_IMAGES_KEY: USER_N_REMAINING_GENERATED_IMAGES_INITIAL_VALUE,
+
+            USER_N_TRANSCRIBED_SECONDS_KEY: 0,
+            USER_N_REMAINING_TRANSCRIBED_SECONDS_KEY: USER_N_REMAINING_TRANSCRIBED_SECONDS_INITIAL_VALUE
         }
 
         new_user_ref = self.users_ref.document(f"{user_id}")
@@ -236,6 +243,17 @@ class Firestore:
 
         self._set_user_attribute(user_id, USER_N_USED_TOKENS_KEY, n_used_tokens_dict)
 
+    def get_n_remaining_tokens(self, user_id: int) -> int:
+        n_remaining_tokens = self._get_user_attribute(user_id, USER_N_REMAINING_TOKENS_KEY)
+
+        if n_remaining_tokens is None:
+            self.set_n_remaining_tokens(user_id, USER_N_REMAINING_TOKENS_INITIAL_VALUE)
+
+        return self._get_user_attribute(user_id, USER_N_REMAINING_TOKENS_KEY) or 0
+
+    def set_n_remaining_tokens(self, user_id: int, n_remaining_tokens: int):
+        return self._set_user_attribute(user_id, USER_N_REMAINING_TOKENS_KEY, n_remaining_tokens)
+
     # Transcribed Seconds
 
     def get_n_transcribed_seconds(self, user_id: int, from_cache: bool = False) -> int:
@@ -243,6 +261,20 @@ class Firestore:
 
     def set_n_transcribed_seconds(self, user_id: int, n_transcribed_seconds: int):
         self._set_user_attribute(user_id, USER_N_TRANSCRIBED_SECONDS_KEY, n_transcribed_seconds)
+
+    def get_n_remaining_transcribed_seconds(self, user_id: int) -> int:
+        n_remaining_transcribed_seconds = self._get_user_attribute(user_id, USER_N_REMAINING_TRANSCRIBED_SECONDS_KEY)
+
+        if n_remaining_transcribed_seconds is None:
+            self.set_n_remaining_transcribed_seconds(user_id, USER_N_REMAINING_TRANSCRIBED_SECONDS_INITIAL_VALUE)
+
+        return self._get_user_attribute(user_id, USER_N_REMAINING_TRANSCRIBED_SECONDS_KEY) or 0
+
+    def set_n_remaining_transcribed_seconds(self, user_id: int, n_remaining_transcribed_seconds: int):
+        return self._set_user_attribute(
+            user_id,
+            USER_N_REMAINING_TRANSCRIBED_SECONDS_KEY,
+            n_remaining_transcribed_seconds)
 
     # Generated Images
 
@@ -252,8 +284,19 @@ class Firestore:
     def set_n_generated_images(self, user_id: int, n_generated_images: int):
         self._set_user_attribute(user_id, USER_N_GENERATED_IMAGES_KEY, n_generated_images)
 
-    def get_n_generated_images_limit(self, user_id: int) -> int:
-        return self._get_user_attribute(user_id, USER_N_GENERATED_IMAGES_LIMIT_KEY) or 0
+    def get_n_remaining_generated_images(self, user_id: int) -> int:
+        n_remaining_generated_images = self._get_user_attribute(user_id, USER_N_REMAINING_GENERATED_IMAGES_KEY)
+
+        if n_remaining_generated_images is None:
+            self.set_n_remaining_generated_images(user_id, USER_N_REMAINING_GENERATED_IMAGES_INITIAL_VALUE)
+
+        return self._get_user_attribute(user_id, USER_N_REMAINING_GENERATED_IMAGES_KEY) or 0
+
+    def set_n_remaining_generated_images(self, user_id: int, n_remaining_generated_images: int):
+        return self._set_user_attribute(
+            user_id,
+            USER_N_REMAINING_GENERATED_IMAGES_KEY,
+            n_remaining_generated_images)
 
     # Last Interaction
 
@@ -308,7 +351,7 @@ class Firestore:
         return self.user_cache.get(user_id)
 
     def _on_reset_user_cache(self, snapshots, change, read_time):
-        self.logger.debug("Will reset user cache")
+        self.logger.debug("Resetting user cache")
         self.user_cache = {}
 
     def _update_user_cache(self, user_id: int, user_snapshot):

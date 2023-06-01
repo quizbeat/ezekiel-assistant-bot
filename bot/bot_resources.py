@@ -80,8 +80,14 @@ class BotResources:
     def empty_message_sent(self, language: Optional[str]) -> str:
         return self._get_localized("empty_message_sent", language)
 
-    def image_generation_limit_exceeded(self, language: Optional[str]) -> str:
-        return self._get_localized("image_generation_limit_exceeded", language)
+    def tokens_limit_reached(self, language: Optional[str]) -> str:
+        return self._get_localized("tokens_limit_reached", language)
+
+    def image_generation_limit_reached(self, language: Optional[str]) -> str:
+        return self._get_localized("image_generation_limit_reached", language)
+
+    def voice_recognition_limit_reached(self, language: Optional[str]) -> str:
+        return self._get_localized("voice_recognition_limit_reached", language)
 
     def description(self, language: Optional[str]) -> str:
         return self._get_localized("description", language)

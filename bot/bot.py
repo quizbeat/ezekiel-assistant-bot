@@ -256,18 +256,15 @@ class Bot:
         chat_mode = self.db.get_current_chat_mode(user_id)
 
         if chat_mode == "artist":
-            n_generated_images = self.db.get_n_generated_images(user_id)
-            n_generated_images_limit = self.db.get_n_generated_images_limit(user_id)
-            if n_generated_images >= n_generated_images_limit:
-                username = telegram_utils.get_username_or_id(update)
-                language = telegram_utils.get_language(update)
-                self.logger.debug("Image generation limit exceeded for %s", username)
-                reply_text = self.resources.image_generation_limit_exceeded(language)
-                await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
-                return
-
             self.logger.debug("Current chat mode is Artist, will generate image")
             await self.generate_image_handle(update, context, message=message)
+            return
+
+        current_n_remaining_tokens = self.db.get_n_remaining_tokens(user_id)
+        if current_n_remaining_tokens <= 0:
+            language = telegram_utils.get_language(update)
+            reply_text = self.resources.tokens_limit_reached(language)
+            await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
             return
 
         async def message_handle_fn():
@@ -387,6 +384,9 @@ class Bot:
                 self.db.set_dialog_messages(user_id, new_dialog_messages)
 
                 self.db.set_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
+
+                new_n_remaining_tokens = current_n_remaining_tokens - (n_input_tokens + n_output_tokens)
+                self.db.set_n_remaining_tokens(user_id, new_n_remaining_tokens)
 
             except asyncio.CancelledError:
                 # note: intermediate token updates only work when enable_message_streaming=True (config.yml)
@@ -539,6 +539,14 @@ class Bot:
         user_id = update.message.from_user.id
         self.update_last_interaction(user_id)
 
+        current_n_remaining_transcribed_seconds = self.db.get_n_remaining_transcribed_seconds(user_id)
+
+        if current_n_remaining_transcribed_seconds <= 0:
+            language = telegram_utils.get_language(update)
+            reply_text = self.resources.voice_recognition_limit_reached(language)
+            await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+            return
+
         voice = update.message.voice
 
         if voice is None:
@@ -571,6 +579,9 @@ class Bot:
         new_n_transcribed_seconds = current_n_transcribed_seconds + voice.duration
         self.db.set_n_transcribed_seconds(user_id, new_n_transcribed_seconds)
 
+        new_n_remaining_transcribed_seconds = current_n_remaining_transcribed_seconds - voice.duration
+        self.db.set_n_remaining_transcribed_seconds(user_id, new_n_remaining_transcribed_seconds)
+
         await self.message_handle(update, context, message=transcribed_text)
 
     async def generate_image_handle(self, update: Update, context: CallbackContext, message: Optional[str] = None):
@@ -585,6 +596,13 @@ class Bot:
 
         user_id = update.message.from_user.id
         self.update_last_interaction(user_id)
+
+        current_n_remaining_generated_images = self.db.get_n_remaining_generated_images(user_id)
+        if current_n_remaining_generated_images <= 0:
+            language = telegram_utils.get_language(update)
+            reply_text = self.resources.image_generation_limit_reached(language)
+            await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+            return
 
         await update.message.chat.send_action(action="upload_photo")
 
@@ -610,6 +628,9 @@ class Bot:
         n_generated_images = self.db.get_n_generated_images(user_id)
         new_n_generated_images = n_generated_images + self.config.return_n_generated_images
         self.db.set_n_generated_images(user_id, new_n_generated_images)
+
+        new_n_remaining_generated_images = current_n_remaining_generated_images - 1
+        self.db.set_n_remaining_generated_images(user_id, new_n_remaining_generated_images)
 
         for image_url in image_urls:
             await update.message.chat.send_action(action="upload_photo")
@@ -807,12 +828,12 @@ class Bot:
             return
 
         chat_mode = callback_query.data.split("|")[1]
-        page_index = self.get_page_index(chat_mode, user.language_code)
+        # page_index = self.get_page_index(chat_mode, user.language_code)
 
-        text, reply_markup = self.get_chat_mode_menu(
-            page_index=page_index,
-            current_chat_mode=chat_mode,
-            language=user.language_code)
+        # text, reply_markup = self.get_chat_mode_menu(
+        #     page_index=page_index,
+        #     current_chat_mode=chat_mode,
+        #     language=user.language_code)
 
         try:
             await callback_query.delete_message()
