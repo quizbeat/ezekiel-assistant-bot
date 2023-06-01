@@ -815,10 +815,11 @@ class Bot:
             language=user.language_code)
 
         try:
-            await callback_query.edit_message_text(
-                text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML)
+            await callback_query.delete_message()
+            # await callback_query.edit_message_text(
+            #     text,
+            #     reply_markup=reply_markup,
+            #     parse_mode=ParseMode.HTML)
 
         except telegram.error.BadRequest as e:
             if str(e).startswith("Message is not modified"):
@@ -833,8 +834,7 @@ class Bot:
         await context.bot.send_message(
             callback_query.message.chat.id,
             welcome_message,
-            parse_mode=ParseMode.HTML
-        )
+            parse_mode=ParseMode.HTML)
 
     def get_settings_menu(self, user_id: int):
         current_model = self.db.get_current_model(user_id)
