@@ -835,8 +835,13 @@ class Bot:
         #     current_chat_mode=chat_mode,
         #     language=user.language_code)
 
+        welcome_message = self.chat_modes.get_welcome_message(chat_mode, user.language_code)
+
         try:
-            await callback_query.delete_message()
+            # await callback_query.delete_message()
+
+            await callback_query.edit_message_text(welcome_message, parse_mode=ParseMode.HTML)
+
             # await callback_query.edit_message_text(
             #     text,
             #     reply_markup=reply_markup,
@@ -850,12 +855,10 @@ class Bot:
         self.db.set_current_chat_mode(user.id, chat_mode)
         self.db.start_new_dialog(user.id)
 
-        welcome_message = self.chat_modes.get_welcome_message(chat_mode, user.language_code)
-
-        await context.bot.send_message(
-            callback_query.message.chat.id,
-            welcome_message,
-            parse_mode=ParseMode.HTML)
+        # await context.bot.send_message(
+        #     callback_query.message.chat.id,
+        #     welcome_message,
+        #     parse_mode=ParseMode.HTML)
 
     def get_settings_menu(self, user_id: int):
         current_model = self.db.get_current_model(user_id)
