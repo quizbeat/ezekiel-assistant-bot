@@ -66,11 +66,13 @@ class Firestore:
         # Stores a user dict by a user id
         self.user_cache = {}
 
+        reset_user_cache_ref = self.db.collection("reset_user_cache")
+        self.reset_user_cache_watch = reset_user_cache_ref.on_snapshot(self._on_reset_user_cache)
+
         self.logger = LoggerFactory(config).create_logger(__name__)
 
-    # def __del__(self):
-    #     for watch in self.user_snapshot_watch.values():
-    #         watch.unsubscribe()
+    def __del__(self):
+        self.reset_user_cache_watch.unsubscribe()
 
     # User
 
@@ -305,21 +307,9 @@ class Firestore:
 
         return self.user_cache.get(user_id)
 
-    # def on_user_snapshot_changes(self, snapshots, changes, read_time):
-    #     self.logger.debug("Got user snapshot update event")
-
-    #     for change in changes:
-    #         self.logger.debug("Change: %s", change.to_dict())
-
-    #     self.logger.debug("Read Time: %s", read_time)
-
-    #     if len(snapshots) == 0:
-    #         self.logger.error("Received an empty snapshot list")
-    #         return
-
-    #     user_snapshot = snapshots[0]
-    #     user_id = int(user_snapshot.id)
-    #     self.update_user_cache(user_id, user_snapshot)
+    def _on_reset_user_cache(self, snapshots, change, read_time):
+        self.logger.debug("Will reset user cache")
+        self.user_cache = {}
 
     def _update_user_cache(self, user_id: int, user_snapshot):
         self.user_cache[user_id] = user_snapshot.to_dict()
