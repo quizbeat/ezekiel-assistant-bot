@@ -160,10 +160,38 @@ class Bot:
             return
 
         user = update.message.from_user
-        self.update_last_interaction(user.id)
-        help_message = self.resources.get_help_message(user.language_code)
+        user_id = user.id
 
-        await update.message.reply_text(help_message, parse_mode=ParseMode.HTML)
+        # This update probably allows to bypass the dialog timeout
+        # self.update_last_interaction(user_id)
+
+        help_text = self.resources.get_help_message(user.language_code)
+        help_text_chunks = help_text.split("\n\n")
+
+        message_text = help_text_chunks[0]
+        message = await update.message.reply_text(message_text, parse_mode=ParseMode.HTML)
+
+        async def complete_by_chunks(message_text, help_text_chunks):
+            for i in range(1, len(help_text_chunks)):
+                message_text += f"\n\n{help_text_chunks[i]}"
+                await context.bot.edit_message_text(
+                    message_text,
+                    chat_id=message.chat_id,
+                    message_id=message.message_id,
+                    parse_mode=ParseMode.HTML)
+                await asyncio.sleep(1.5)
+
+        async with self.user_semaphores[user_id]:
+            task = asyncio.create_task(complete_by_chunks(message_text, help_text_chunks))
+            self.user_tasks[user_id] = task
+
+            try:
+                await task
+            except Exception:
+                pass
+            finally:
+                if user_id in self.user_tasks:
+                    del self.user_tasks[user_id]
 
     async def help_group_chat_handle(self, update: Update, context: CallbackContext):
         await self.register_user_if_not_registered_for_update(update)
@@ -292,8 +320,8 @@ class Bot:
             current_model = self.db.get_current_model(user_id)
 
             try:
-                # send placeholder message to user
-                placeholder_message = await update.message.reply_text("...")
+                # send a placeholder message to the user
+                placeholder_message = await update.message.reply_text("…")
 
                 # send typing action
                 await update.message.chat.send_action(action="typing")
@@ -306,10 +334,8 @@ class Bot:
                     return
 
                 dialog_messages = self.db.get_dialog_messages(user_id, dialog_id=None)
-
                 internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
                 parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
-
                 language = bot_utils.detect_language(message_text)
 
                 answer = ""
@@ -354,8 +380,7 @@ class Bot:
                             answer,
                             chat_id=placeholder_message.chat_id,
                             message_id=placeholder_message.message_id,
-                            parse_mode=parse_mode
-                        )
+                            parse_mode=parse_mode)
 
                     except telegram.error.BadRequest as e:
                         if str(e).startswith("Message is not modified"):
@@ -838,14 +863,7 @@ class Bot:
         welcome_message = self.chat_modes.get_welcome_message(chat_mode, user.language_code)
 
         try:
-            # await callback_query.delete_message()
-
-            await callback_query.edit_message_text(welcome_message, parse_mode=ParseMode.HTML)
-
-            # await callback_query.edit_message_text(
-            #     text,
-            #     reply_markup=reply_markup,
-            #     parse_mode=ParseMode.HTML)
+            await callback_query.delete_message()
 
         except telegram.error.BadRequest as e:
             if str(e).startswith("Message is not modified"):
@@ -855,10 +873,10 @@ class Bot:
         self.db.set_current_chat_mode(user.id, chat_mode)
         self.db.start_new_dialog(user.id)
 
-        # await context.bot.send_message(
-        #     callback_query.message.chat.id,
-        #     welcome_message,
-        #     parse_mode=ParseMode.HTML)
+        await context.bot.send_message(
+            callback_query.message.chat.id,
+            welcome_message,
+            parse_mode=ParseMode.HTML)
 
     def get_settings_menu(self, user_id: int):
         current_model = self.db.get_current_model(user_id)
