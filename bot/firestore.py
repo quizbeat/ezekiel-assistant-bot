@@ -2,7 +2,7 @@ import os
 import json
 from base64 import b64decode
 
-from typing import Optional, List, Any
+from typing import Optional, Tuple, List, Any
 from datetime import datetime, timezone
 import uuid
 
@@ -182,7 +182,7 @@ class Firestore:
         dialog_ref.update({DIALOG_MESSAGES_KEY: messages})
 
     # Returns a dialog id and the message index
-    def get_dialog_id(self, user_id: int, message_id: int) -> tuple[Optional[str], Optional[int]]:
+    def get_dialog_id(self, user_id: int, message_id: int) -> Tuple[Optional[str], Optional[int]]:
         # TODO: Improve performance
         dialogs_collection = self._get_dialogs_collection(user_id)
         for dialog in dialogs_collection.get():

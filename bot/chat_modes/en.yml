@@ -120,5 +120,5 @@ python_interpreter:
   name: 🐍 Python Interpreter
   welcome_message: 🐍 Hi, I'm a <b>Python Interpreter</b>. How can I help you?
   prompt_start: |
-    I want you to act like a Python interpreter. I will give you Python code, and you will execute it. Do not provide any explanations. Do not respond with anything except the output of the code. The first code is:
+    I want you to act like a Python interpreter. I will give you Python code, and you will execute it. Do not provide any explanations. Do not respond with anything except the output of the code. If there is no output for the given code, just answer with "<i>no output</i>", keep the HTML tags. The first code is:
   parse_mode: markdown
