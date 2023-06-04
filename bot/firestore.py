@@ -181,18 +181,19 @@ class Firestore:
         dialog_ref = dialogs_collection.document(dialog_id)
         dialog_ref.update({DIALOG_MESSAGES_KEY: messages})
 
-    def get_dialog_id(self, user_id: int, message_id: int) -> Optional[str]:
+    # Returns a dialog id and the message index
+    def get_dialog_id(self, user_id: int, message_id: int) -> tuple[Optional[str], Optional[int]]:
         # TODO: Improve performance
         dialogs_collection = self._get_dialogs_collection(user_id)
         for dialog in dialogs_collection.get():
-            messages = dialog.to_dict()[DIALOG_MESSAGES_KEY]
-            for message in messages:
+            messages = list(dialog.to_dict()[DIALOG_MESSAGES_KEY])
+            for message_index, message in enumerate(messages):
                 if message.get(DIALOG_MESSAGE_ID_KEY) == message_id:
-                    return dialog.id
+                    return dialog.id, message_index
 
         self.logger.warning("Dialog id for a message %d not found", message_id)
 
-        return None
+        return None, None
 
     # Current Model
 

@@ -479,9 +479,9 @@ class Bot:
 
         reply_to_message_id = message.reply_to_message.message_id
         current_dialog_id = self.db.get_current_dialog_id(user_id)
-        reply_to_dialog_id = self.db.get_dialog_id(user_id, reply_to_message_id)
+        target_dialog_id, target_message_i = self.db.get_dialog_id(user_id, reply_to_message_id)
 
-        if reply_to_dialog_id is None:
+        if target_dialog_id is None or target_message_i is None:
             language = telegram_utils.get_language(message)
             reply_text = self.resources.cant_return_to_dialog(language)
             await message.reply_text(reply_text, parse_mode=ParseMode.HTML)
@@ -491,23 +491,21 @@ class Bot:
         # the bot will start a new dialog due to timeout if exceeded.
         self.update_last_interaction(user_id)
 
-        if reply_to_dialog_id == current_dialog_id:
-            self.logger.debug("This is the same dialog, do nothing")
+        target_dialog_messages = self.db.get_dialog_messages(user_id, target_dialog_id)
+
+        has_replied_to_current_dialog = (target_dialog_id == current_dialog_id)
+        has_replied_to_last_message_from_dialog = (target_message_i == (len(target_dialog_messages) - 1))
+
+        if has_replied_to_current_dialog and has_replied_to_last_message_from_dialog:
+            self.logger.debug("This is the last message of the same dialog, do nothing")
             return ChatContextSwitch.NOT_NEEDED
 
-        # reply_text = "✅ Returning back to <b>that</b> dialog…"
-        # await message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+        target_chat_mode = self.db.get_chat_mode(user_id, target_dialog_id)
+        self.db.set_current_chat_mode(user_id, target_chat_mode)
 
-        self.db.set_current_dialog_id(user_id, reply_to_dialog_id)
-
-        current_chat_mode = self.db.get_current_chat_mode(user_id)
-        reply_to_chat_mode = self.db.get_chat_mode(user_id, reply_to_dialog_id)
-
-        if reply_to_chat_mode == current_chat_mode:
-            self.logger.debug("The chat mode is the same, do nothing")
-            return ChatContextSwitch.SWITCHED
-
-        self.db.set_current_chat_mode(user_id, reply_to_chat_mode)
+        new_dialog_id = self.db.start_new_dialog(user_id)
+        new_dialog_messages = target_dialog_messages[:(target_message_i + 1)]
+        self.db.set_dialog_messages(user_id, new_dialog_messages, new_dialog_id)
 
         return ChatContextSwitch.SWITCHED
 
