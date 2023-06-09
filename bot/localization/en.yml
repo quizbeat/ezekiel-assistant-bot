@@ -48,7 +48,7 @@ command_help: 💁 Show Help
 
 select_chat_mode: 'Select <b>chat mode</b> ($count modes available):'
 starting_new_dialog: 🚀 Starting a new dialog
-starting_new_dialog_due_to_timeout: 🚀 Starting new dialog due to timeout (<b>$chat_mode_name</b> mode)
+starting_new_dialog_due_to_timeout: 🚀 Starting a new dialog due to timeout (<b>$chat_mode_name</b> mode)
 dialog_cancelled: 🙅‍♂️ Cancelled
 wait_for_reply: |
   ⏳ Please <b>wait</b> for a reply to the previous message
