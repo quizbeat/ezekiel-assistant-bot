@@ -8,6 +8,9 @@
 - Message Streaming
 - Group Chat Support
 - Formatted Response (Markdown, HTML)
+- English and Russian Localization
+- Digital Ocean's Health Check Support
+- Firestore Database
 
 ## Setup
 
