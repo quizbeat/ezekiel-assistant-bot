@@ -1101,6 +1101,9 @@ class Bot:
         # add handlers
         user_filter = filters.ALL
         if len(self.config.allowed_telegram_usernames) > 0:
+            for user in self.config.allowed_telegram_usernames:
+                self.logger.error("user: %s, class: %s", user, type(user))
+            
             usernames = [x for x in self.config.allowed_telegram_usernames if isinstance(x, str)]
             user_ids = [x for x in self.config.allowed_telegram_usernames if isinstance(x, int)]
             user_filter = filters.User(username=usernames) | filters.User(user_id=user_ids)
