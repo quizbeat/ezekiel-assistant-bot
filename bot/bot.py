@@ -287,7 +287,8 @@ class Bot:
         forwarded_message = await context.bot.forward_message(
             chat_id=chat_id,
             from_chat_id=chat_id,
-            message_id=table_of_contents_message_id)
+            message_id=table_of_contents_message_id,
+            disable_notification=True)
 
         table_of_contents = forwarded_message.text_markdown_v2
 
