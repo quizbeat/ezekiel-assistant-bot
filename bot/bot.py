@@ -256,6 +256,7 @@ class Bot:
         chat_id = channel_post.chat.id
 
         if chat_id != self.config.episodes_chat_id:
+            self.logger.debug(f"expected {self.config.episodes_chat_id}, got {chat_id}")
             return
 
         message_id = channel_post.message_id
