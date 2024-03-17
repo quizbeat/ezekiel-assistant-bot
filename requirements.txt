@@ -6,3 +6,4 @@ firebase-admin==6.1.0
 python-dotenv==0.21.0
 pydub==0.25.1
 Babel==2.12.1
+beautifulsoup4==4.12.3
