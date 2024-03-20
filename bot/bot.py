@@ -289,8 +289,9 @@ class Bot:
 
         table_of_contents_message_id = self.config.episodes_toc_message_id
 
+        aux_chat_id = self.config.episodes_aux_chat_id
         forwarded_message = await context.bot.forward_message(
-            chat_id=chat_id,
+            chat_id=aux_chat_id,
             from_chat_id=chat_id,
             message_id=table_of_contents_message_id,
             disable_notification=True)
@@ -307,7 +308,7 @@ class Bot:
             parse_mode=ParseMode.MARKDOWN_V2)
 
         await context.bot.delete_message(
-            chat_id=chat_id,
+            chat_id=aux_chat_id,
             message_id=forwarded_message.id)
 
     def escape_markdown(self, text):
