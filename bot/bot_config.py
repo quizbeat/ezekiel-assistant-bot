@@ -15,6 +15,7 @@ class BotConfig:
         self.allowed_telegram_usernames = (os.getenv("ALLOWED_TELEGRAM_USERNAMES") or "").split(",")
 
         self.episodes_chat_id = int(os.getenv("EPISODES_CHAT_ID") or -1)
+        self.episodes_aux_chat_id = int(os.getenv("EPISODES_AUX_CHAT_ID") or -1)
         self.episodes_toc_message_id = int(os.getenv("EPISODES_TOC_MESSAGE_ID") or -1)
 
         self.new_dialog_timeout = int(os.getenv("NEW_DIALOG_TIMEOUT") or 600)

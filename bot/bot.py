@@ -3,6 +3,7 @@ import traceback
 import html
 import json
 import math
+import re
 import tempfile
 from enum import Enum
 from pathlib import Path
@@ -264,22 +265,26 @@ class Bot:
 
         episode_url = caption
         soup = self.get_soup(episode_url)
-        episode_title = self.get_episode_title(soup)
-        episode_number = self.get_episode_number(soup)
         episode_date = self.get_episode_date(soup)
+        episode_number = self.get_episode_number(soup)
+        episode_title = self.get_episode_title(soup)
+        episode_description = self.get_episode_description(soup)
         episode_timecodes = self.get_episode_timecodes(soup)
 
-        episode_description = self.make_episode_description(
+        episode_caption = self.make_episode_caption(
             episode_date=episode_date,
             episode_number=episode_number,
             episode_title=episode_title,
-            episode_url=episode_url,
-            episode_timecodes=episode_timecodes)
+            episode_description=episode_description,
+            episode_timecodes=episode_timecodes,
+            episode_url=episode_url)
+
+        self.logger.debug(episode_caption)
 
         await context.bot.edit_message_caption(
             chat_id=chat_id,
             message_id=message_id,
-            caption=episode_description,
+            caption=episode_caption,
             parse_mode=ParseMode.MARKDOWN_V2)
 
         table_of_contents_message_id = self.config.episodes_toc_message_id
@@ -315,15 +320,23 @@ class Bot:
     def get_soup(self, url):
         return BeautifulSoup(urlopen(url), 'html.parser')
 
-    def make_episode_description(
+    def make_episode_caption(
             self,
             episode_date,
             episode_number,
             episode_title,
-            episode_url,
-            episode_timecodes):
+            episode_description,
+            episode_timecodes,
+            episode_url):
 
-        return f"{episode_date}\n*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n{self.escape_markdown(episode_url)}\n\n{episode_timecodes}"
+        caption = f"{episode_date}\n"
+        caption += f"*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n\n"
+        caption += f"{episode_description}\n\n"
+        caption += f"{episode_timecodes}\n"
+        caption += f"{self.escape_markdown(episode_url)}"
+        return caption
+
+        # return f"{episode_date}\n*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n{self.escape_markdown(episode_url)}\n\n{episode_timecodes}"
 
     def get_episode_timecodes(self, soup):
         content = soup.find('div', {"class": "m-mb1"})
@@ -340,6 +353,18 @@ class Bot:
     def get_episode_title(self, soup):
         content = soup.find('h1', {"class": "fg-white fg-black bold ts-d-r3 ts-m-r2 lh-2 center"})
         return content.get_text()
+
+    def get_episode_description(self, soup):
+        div_tag = soup.find('div', {"class": "md-ctn"})
+        p_tag = div_tag.find('p')
+
+        for code_tag in p_tag.find_all('code'):
+            code_tag.replace_with('`' + code_tag.get_text() + '`')
+
+        p_contents = ''.join(map(str, p_tag.contents))
+
+        escape_chars = r"\_*[]()~>#+-=|{}.!"
+        return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", p_contents)
 
     def get_episode_number(self, soup):
         return soup.find('div', {"class": "m-pb2 fg-gray650 fg-black normal h6 lh-4 center"}).get_text().split(' • ')[0].split('#')[-1].rjust(3, '0')
