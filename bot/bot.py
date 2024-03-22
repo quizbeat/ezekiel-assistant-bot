@@ -279,7 +279,7 @@ class Bot:
             episode_timecodes=episode_timecodes,
             episode_url=episode_url)
 
-        self.logger.debug(episode_caption)
+        self.logger.debug(f"\n{episode_caption}")
 
         await context.bot.edit_message_caption(
             chat_id=chat_id,
@@ -334,10 +334,8 @@ class Bot:
         caption += f"*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n\n"
         caption += f"{episode_description}\n\n"
         caption += f"{episode_timecodes}\n"
-        caption += f"{self.escape_markdown(episode_url)}"
+        caption += f"[{self.escape_markdown(self.config.episodes_url_name)}]({self.escape_markdown(episode_url)})"
         return caption
-
-        # return f"{episode_date}\n*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n{self.escape_markdown(episode_url)}\n\n{episode_timecodes}"
 
     def get_episode_timecodes(self, soup):
         content = soup.find('div', {"class": "m-mb1"})
