@@ -270,6 +270,7 @@ class Bot:
         episode_title = self.get_episode_title(soup)
         episode_description = self.get_episode_description(soup)
         episode_timecodes = self.get_episode_timecodes(soup)
+        episode_references = self.get_episode_references(soup)
 
         episode_caption = self.make_episode_caption(
             episode_date=episode_date,
@@ -277,6 +278,7 @@ class Bot:
             episode_title=episode_title,
             episode_description=episode_description,
             episode_timecodes=episode_timecodes,
+            episode_references=episode_references,
             episode_url=episode_url)
 
         self.logger.debug(f"\n{episode_caption}")
@@ -311,11 +313,12 @@ class Bot:
             chat_id=aux_chat_id,
             message_id=forwarded_message.id)
 
-        await context.bot.copy_message(
-            chat_id=self.config.episodes_reserve_chat_id,
-            from_chat_id=chat_id,
-            message_id=message_id,
-            disable_notification=True)
+        if self.config.episodes_should_replicate:
+            await context.bot.copy_message(
+                chat_id=self.config.episodes_reserve_chat_id,
+                from_chat_id=chat_id,
+                message_id=message_id,
+                disable_notification=True)
 
     def escape_markdown(self, text):
         return telegram.helpers.escape_markdown(text=text, version=2)
@@ -334,12 +337,17 @@ class Bot:
             episode_title,
             episode_description,
             episode_timecodes,
+            episode_references,
             episode_url):
 
         caption = f"{episode_date}\n"
         caption += f"*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n\n"
         caption += f"{episode_description}\n\n"
         caption += f"{episode_timecodes}\n"
+
+        if episode_references is not None:
+            caption += f"{episode_references}\n"
+
         caption += f"[{self.escape_markdown(self.config.episodes_url_name)}]({self.escape_markdown(episode_url)})"
         return caption
 
@@ -354,6 +362,27 @@ class Bot:
             timecodes += f"{timecode} {self.escape_markdown(title)}\n"
 
         return timecodes
+
+    def get_episode_references(self, soup):
+        references = "*References:*\n"
+        refs_div = soup.find('div', {"class": "d-pl4 d-pr3 d-pt2 m-pt3 m-pl3 m-pr3 bg-white"})
+
+        if refs_div is None:
+            return None
+
+        ref_item_id = 1
+
+        while True:
+            ref_item_div = refs_div.find('div', {"id": f"reference-{ref_item_id}"})
+            if ref_item_div is None:
+                break
+
+            ref_url_div = ref_item_div.find('div', {"class": "fg-purple"})
+            ref_url = ref_url_div.get_text()
+            references += f"• {self.escape_markdown(ref_url)}\n"
+            ref_item_id += 1
+
+        return references
 
     def get_episode_title(self, soup):
         content = soup.find('h1', {"class": "fg-white fg-black bold ts-d-r3 ts-m-r2 lh-2 center"})
