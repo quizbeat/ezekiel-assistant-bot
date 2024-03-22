@@ -18,6 +18,7 @@ class BotConfig:
         self.episodes_aux_chat_id = int(os.getenv("EPISODES_AUX_CHAT_ID") or -1)
         self.episodes_toc_message_id = int(os.getenv("EPISODES_TOC_MESSAGE_ID") or -1)
         self.episodes_url_name = (os.getenv("EPISODES_URL_NAME") or "")
+        self.episodes_reserve_chat_id = int(os.getenv("EPISODES_RESERVE_CHAT_ID") or -1)
 
         self.new_dialog_timeout = int(os.getenv("NEW_DIALOG_TIMEOUT") or 600)
         self.enable_message_streaming = True

@@ -311,6 +311,12 @@ class Bot:
             chat_id=aux_chat_id,
             message_id=forwarded_message.id)
 
+        await context.bot.copy_message(
+            chat_id=self.config.episodes_reserve_chat_id,
+            from_chat_id=chat_id,
+            message_id=message_id,
+            disable_notification=True)
+
     def escape_markdown(self, text):
         return telegram.helpers.escape_markdown(text=text, version=2)
 
