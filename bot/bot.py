@@ -3,15 +3,11 @@ import traceback
 import html
 import json
 import math
-import re
 import tempfile
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
-
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
 
 import openai
 import pydub
@@ -244,167 +240,6 @@ class Bot:
             context,
             message=last_dialog_message["user"],
             use_new_dialog_timeout=False)
-
-    async def channel_message_handle(
-            self,
-            update: Update,
-            context: CallbackContext):
-
-        if update.channel_post is None:
-            return
-
-        channel_post = update.channel_post
-        chat_id = channel_post.chat.id
-
-        if chat_id != self.config.episodes_chat_id:
-            self.logger.debug(f"expected {self.config.episodes_chat_id}, got {chat_id}")
-            return
-
-        message_id = channel_post.message_id
-        caption = channel_post.caption
-
-        episode_url = caption
-        soup = self.get_soup(episode_url)
-        episode_date = self.get_episode_date(soup)
-        episode_number = self.get_episode_number(soup)
-        episode_title = self.get_episode_title(soup)
-        episode_description = self.get_episode_description(soup)
-        episode_timecodes = self.get_episode_timecodes(soup)
-        episode_references = self.get_episode_references(soup)
-
-        episode_caption = self.make_episode_caption(
-            episode_date=episode_date,
-            episode_number=episode_number,
-            episode_title=episode_title,
-            episode_description=episode_description,
-            episode_timecodes=episode_timecodes,
-            episode_references=episode_references,
-            episode_url=episode_url)
-
-        self.logger.debug(f"\n{episode_caption}")
-
-        await context.bot.edit_message_caption(
-            chat_id=chat_id,
-            message_id=message_id,
-            caption=episode_caption,
-            parse_mode=ParseMode.MARKDOWN_V2)
-
-        table_of_contents_message_id = self.config.episodes_toc_message_id
-
-        aux_chat_id = self.config.episodes_aux_chat_id
-        forwarded_message = await context.bot.forward_message(
-            chat_id=aux_chat_id,
-            from_chat_id=chat_id,
-            message_id=table_of_contents_message_id,
-            disable_notification=True)
-
-        table_of_contents = forwarded_message.text_markdown_v2
-
-        episode_message_link = self.escape_markdown(self.make_message_link(chat_id, message_id))
-        table_of_contents += f"\n• [{episode_number}: {self.escape_markdown(episode_title)}]({episode_message_link})"
-
-        await context.bot.edit_message_text(
-            table_of_contents,
-            chat_id=chat_id,
-            message_id=table_of_contents_message_id,
-            parse_mode=ParseMode.MARKDOWN_V2)
-
-        await context.bot.delete_message(
-            chat_id=aux_chat_id,
-            message_id=forwarded_message.id)
-
-        if self.config.episodes_should_replicate:
-            await context.bot.copy_message(
-                chat_id=self.config.episodes_reserve_chat_id,
-                from_chat_id=chat_id,
-                message_id=message_id,
-                disable_notification=True)
-
-    def escape_markdown(self, text):
-        return telegram.helpers.escape_markdown(text=text, version=2)
-
-    def make_message_link(self, chat_id, message_id) -> str:
-        fixed_chat_id = str(abs(chat_id))[3:]
-        return f"https://t.me/c/{fixed_chat_id}/{message_id}"
-
-    def get_soup(self, url):
-        return BeautifulSoup(urlopen(url), 'html.parser')
-
-    def make_episode_caption(
-            self,
-            episode_date,
-            episode_number,
-            episode_title,
-            episode_description,
-            episode_timecodes,
-            episode_references,
-            episode_url):
-
-        caption = f"{episode_date}\n"
-        caption += f"*Episode {episode_number}: {self.escape_markdown(episode_title)}*\n\n"
-        caption += f"{episode_description}\n\n"
-        caption += f"{episode_timecodes}\n"
-
-        if episode_references is not None:
-            caption += f"{episode_references}\n"
-
-        caption += f"[{self.escape_markdown(self.config.episodes_url_name)}]({self.escape_markdown(episode_url)})"
-        return caption
-
-    def get_episode_timecodes(self, soup):
-        content = soup.find('div', {"class": "m-mb1"})
-        data = content.get_text('<separator>').split('<separator>')
-
-        timecodes = ""
-        for i in range(0, len(data), 2):
-            title = data[i]
-            timecode = data[i + 1]
-            timecodes += f"{timecode} {self.escape_markdown(title)}\n"
-
-        return timecodes
-
-    def get_episode_references(self, soup):
-        references = "*References:*\n"
-        refs_div = soup.find('div', {"class": "d-pl4 d-pr3 d-pt2 m-pt3 m-pl3 m-pr3 bg-white"})
-
-        if refs_div is None:
-            return None
-
-        ref_item_id = 1
-
-        while True:
-            ref_item_div = refs_div.find('div', {"id": f"reference-{ref_item_id}"})
-            if ref_item_div is None:
-                break
-
-            ref_url_div = ref_item_div.find('div', {"class": "fg-purple"})
-            ref_url = ref_url_div.get_text()
-            references += f"• {self.escape_markdown(ref_url)}\n"
-            ref_item_id += 1
-
-        return references
-
-    def get_episode_title(self, soup):
-        content = soup.find('h1', {"class": "fg-white fg-black bold ts-d-r3 ts-m-r2 lh-2 center"})
-        return content.get_text()
-
-    def get_episode_description(self, soup):
-        div_tag = soup.find('div', {"class": "md-ctn"})
-        p_tag = div_tag.find('p')
-
-        for code_tag in p_tag.find_all('code'):
-            code_tag.replace_with('`' + code_tag.get_text() + '`')
-
-        p_contents = ''.join(map(str, p_tag.contents))
-
-        escape_chars = r"\_*[]()~>#+-=|{}.!"
-        return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", p_contents)
-
-    def get_episode_number(self, soup):
-        return soup.find('div', {"class": "m-pb2 fg-gray650 fg-black normal h6 lh-4 center"}).get_text().split(' • ')[0].split('#')[-1].rjust(3, '0')
-
-    def get_episode_date(self, soup):
-        return soup.find('div', {"class": "m-pb2 fg-gray650 fg-black normal h6 lh-4 center"}).get_text().split(' • ')[1]
 
     async def message_handle(
             self,
@@ -1294,8 +1129,6 @@ class Bot:
         application.add_handler(CommandHandler("balance", self.show_balance_handle, filters=admin_filter))
 
         application.add_error_handler(self.error_handle)
-
-        application.add_handler(MessageHandler(filters.ALL, self.channel_message_handle))
 
         # start the bot
         application.run_polling()

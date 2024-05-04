@@ -14,13 +14,6 @@ class BotConfig:
         self.bot_admin_id = int(os.getenv("BOT_ADMIN_ID") or -1)
         self.allowed_telegram_usernames = (os.getenv("ALLOWED_TELEGRAM_USERNAMES") or "").split(",")
 
-        self.episodes_chat_id = int(os.getenv("EPISODES_CHAT_ID") or -1)
-        self.episodes_aux_chat_id = int(os.getenv("EPISODES_AUX_CHAT_ID") or -1)
-        self.episodes_toc_message_id = int(os.getenv("EPISODES_TOC_MESSAGE_ID") or -1)
-        self.episodes_url_name = (os.getenv("EPISODES_URL_NAME") or "")
-        self.episodes_reserve_chat_id = int(os.getenv("EPISODES_RESERVE_CHAT_ID") or -1)
-        self.episodes_should_replicate = bool(int(os.getenv("EPISODES_SHOULD_REPLICATE") or 0))
-
         self.new_dialog_timeout = int(os.getenv("NEW_DIALOG_TIMEOUT") or 600)
         self.enable_message_streaming = True
 
