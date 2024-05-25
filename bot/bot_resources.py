@@ -30,11 +30,11 @@ class BotResources:
     def get_retry_command_title(self, language: Optional[str]) -> str:
         return self._get_localized("command_retry", language)
 
-    def get_balance_command_title(self, language: Optional[str]) -> str:
-        return self._get_localized("command_balance", language)
+    def get_usage_command_title(self, language: Optional[str]) -> str:
+        return self._get_localized("command_usage", language)
 
-    def get_settings_command_title(self, language: Optional[str]) -> str:
-        return self._get_localized("command_settings", language)
+    def get_model_command_title(self, language: Optional[str]) -> str:
+        return self._get_localized("command_model", language)
 
     def get_help_command_title(self, language: Optional[str]) -> str:
         return self._get_localized("command_help", language)
@@ -95,17 +95,17 @@ class BotResources:
     def welcome_message(self, language: Optional[str]) -> str:
         return self._get_localized("welcome_message", language)
 
-    def balance_you_spent(self, language: Optional[str], **kwargs) -> str:
-        return self._get_localized("balance_you_spent", language, **kwargs)
+    def usage_header(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("usage_header", language, **kwargs)
 
-    def balance_tokens_used(self, language: Optional[str], **kwargs) -> str:
-        return self._get_localized("balance_tokens_used", language, **kwargs)
+    def usage_tokens(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("usage_tokens", language, **kwargs)
 
-    def balance_images_generated(self, language: Optional[str], **kwargs) -> str:
-        return self._get_localized("balance_images_generated", language, **kwargs)
+    def usage_images(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("usage_images", language, **kwargs)
 
-    def balance_seconds_transcribed(self, language: Optional[str], **kwargs) -> str:
-        return self._get_localized("balance_seconds_transcribed", language, **kwargs)
+    def usage_seconds(self, language: Optional[str], **kwargs) -> str:
+        return self._get_localized("usage_seconds", language, **kwargs)
 
     # Private
 

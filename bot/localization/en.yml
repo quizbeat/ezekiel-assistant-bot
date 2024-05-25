@@ -42,8 +42,8 @@ help_message_group_chat: |
 command_new: 🚀 Start New Dialog
 command_mode: 🤖 Select Chat Mode
 command_retry: 🔄 Regenerate Last Response
-command_balance: 💰 Show Balance
-command_settings: ⚙️ Show Settings
+command_usage: 🧾 Show Usage
+command_model: ⚙️ Change Model
 command_help: 💁 Show Help
 
 select_chat_mode: 'Select <b>chat mode</b> ($count modes available):'
@@ -67,10 +67,10 @@ tokens_limit_reached: 🥲 You have reached the usage limit. Please contact the 
 image_generation_limit_reached: 🥲 You have reached the image generation limit. Please contact the bot owner.
 voice_recognition_limit_reached: 🥲 You have reached the voice recognition limit. Please contact the bot owner.
 
-balance_you_spent: "🧾 You have spent"
-balance_tokens_used: $count tokens
-balance_images_generated: $count images
-balance_seconds_transcribed: $count seconds
+usage_header: "🧾 Usage"
+usage_tokens: $count tokens
+usage_images: $count images
+usage_seconds: $count seconds
 
 dialog_is_too_long:
   one: | 

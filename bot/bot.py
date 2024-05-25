@@ -895,14 +895,14 @@ class Bot:
             if model_key == current_model:
                 title = "✅ " + title
 
-            callback_data = f"set_settings|{model_key}"
+            callback_data = f"set_model|{model_key}"
             buttons.append(InlineKeyboardButton(title, callback_data=callback_data))
 
         reply_markup = InlineKeyboardMarkup([buttons])
 
         return text, reply_markup
 
-    async def settings_handle(self, update: Update, context: CallbackContext):
+    async def model_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
@@ -923,7 +923,7 @@ class Bot:
 
     # The Update object passed to this function has only callback_query field.
     # All the data you need to work with should be extracted from callback_query.
-    async def set_settings_handle(self, update: Update, context: CallbackContext):
+    async def set_model_handle(self, update: Update, context: CallbackContext):
         callback_query = update.callback_query
         if callback_query is None:
             self.logger.error("Callback Query is None")
@@ -958,7 +958,7 @@ class Bot:
             if str(e).startswith("Message is not modified"):
                 pass
 
-    async def show_balance_handle(self, update: Update, context: CallbackContext):
+    async def show_usage_handle(self, update: Update, context: CallbackContext):
         self.logger.debug("called for %s", telegram_utils.get_username_or_id(update))
 
         await self.register_user_if_not_registered_for_update(update)
@@ -1053,8 +1053,8 @@ class Bot:
             BotCommand("/new", self.resources.get_new_command_title(command_language)),
             BotCommand("/mode", self.resources.get_mode_command_title(command_language)),
             BotCommand("/retry", self.resources.get_retry_command_title(command_language)),
-            # BotCommand("/balance", self.resources.get_balance_command_title(command_language)),
-            # BotCommand("/settings", resources.get_settings_command_title(command_language)),
+            BotCommand("/usage", self.resources.get_usage_command_title(command_language)),
+            # BotCommand("/model", self.resources.get_model_command_title(command_language)),
             BotCommand("/help", self.resources.get_help_command_title(command_language)),
         ], language_code=user_language)
 
@@ -1123,10 +1123,10 @@ class Bot:
         admin_filter = filters.User(user_id=self.config.bot_admin_id)
         application.add_handler(CommandHandler("stats", self.show_stats_handle, filters=admin_filter))
 
-        application.add_handler(CommandHandler("settings", self.settings_handle, filters=admin_filter))
-        application.add_handler(CallbackQueryHandler(self.set_settings_handle, pattern="^set_settings"))
+        application.add_handler(CommandHandler("model", self.model_handle, filters=admin_filter))
+        application.add_handler(CallbackQueryHandler(self.set_model_handle, pattern="^set_model"))
 
-        application.add_handler(CommandHandler("balance", self.show_balance_handle, filters=admin_filter))
+        application.add_handler(CommandHandler("usage", self.show_usage_handle, filters=admin_filter))
 
         application.add_error_handler(self.error_handle)
 
