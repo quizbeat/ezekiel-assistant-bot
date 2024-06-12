@@ -1,31 +1,25 @@
-available_text_models: ["gpt-3.5-turbo", "gpt-4"]
+available_text_models: ["gpt-3.5-turbo", "gpt-4o"]
 
 info:
   gpt-3.5-turbo:
     type: chat_completion
-    name: ChatGPT
-    description: ChatGPT is that well-known model. It's <b>fast</b> and <b>cheap</b>. Ideal for everyday tasks. If there are some tasks it can't handle, try the <b>GPT-4</b>.
-
-    price_per_1000_input_tokens: 0.002
-    price_per_1000_output_tokens: 0.002
+    name: GPT-3.5 Turbo
+    description: The GPT-3.5 Turbo model is a fast, inexpensive model for simple tasks. It has a 16K context window and is optimized for dialog.
 
     scores:
       Smart: 3
       Fast: 5
       Cheap: 5
 
-  gpt-4:
+  gpt-4o:
     type: chat_completion
-    name: GPT-4
-    description: GPT-4 is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
-
-    price_per_1000_input_tokens: 0.03
-    price_per_1000_output_tokens: 0.06
+    name: GPT-4o
+    description: GPT-4o is OpenAI's <b>most advanced</b> multimodal model that’s faster and cheaper than GPT-4 Turbo with stronger <b>vision capabilities</b>. The model has 128K context and an October 2023 knowledge cutoff.
 
     scores:
       Smart: 5
-      Fast: 2
-      Cheap: 2
+      Fast: 4
+      Cheap: 3
 
   dalle-2:
      type: image

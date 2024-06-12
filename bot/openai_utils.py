@@ -16,7 +16,7 @@ OPENAI_COMPLETION_OPTIONS = {
 }
 
 OPENAI_INVALID_REQUEST_PREFIX = "Your request was rejected as a result of our safety system"
-OPENAI_SUPPORTED_MODELS = {"gpt-3.5-turbo", "gpt-4", "gpt-4o"}
+OPENAI_SUPPORTED_MODELS = {"gpt-3.5-turbo", "gpt-4o"}
 OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo"
 
 
