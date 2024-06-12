@@ -1,5 +1,5 @@
 python-telegram-bot[rate-limiter]==20.2
-openai==0.28.1
+openai==1.33.0
 tiktoken>=0.3.0
 PyYAML==6.0
 firebase-admin==6.1.0

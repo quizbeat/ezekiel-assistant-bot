@@ -42,6 +42,8 @@ from logger_factory import LoggerFactory
 from chat_modes.chat_modes import ChatModes
 
 import openai_utils
+from openai_utils import Assistant
+
 import telegram_utils
 import bot_utils
 import health_check
@@ -57,9 +59,6 @@ class Bot:
 
     def __init__(self):
         config = BotConfig()
-
-        openai_utils.configure_openai(config.openai_api_key)
-
         self.config = config
         self.chat_modes = ChatModes()
         self.resources = BotResources()
@@ -333,54 +332,47 @@ class Bot:
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
                     return
 
-                dialog_messages = self.db.get_dialog_messages(user_id, dialog_id=None)
+                chat_history = self.db.get_dialog_messages(user_id, dialog_id=None)
                 internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
                 parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
                 language = bot_utils.detect_language(message_text)
 
                 answer = ""
+                previous_answer = ""
                 n_first_dialog_messages_removed = 0
-                chatgpt_instance = openai_utils.ChatGPT(
+
+                assistant = Assistant(
                     config=self.config,
                     chat_modes=self.chat_modes,
-                    model=current_model)
+                    model=current_model
+                )
 
-                if self.config.enable_message_streaming:
-                    gen = chatgpt_instance.send_message_stream(
-                        message_text,
-                        dialog_messages=dialog_messages,
-                        chat_mode=chat_mode,
-                        language=language)
+                response_stream = assistant.send_message(
+                    message=message_text,
+                    chat_history=chat_history,
+                    chat_mode=chat_mode,
+                    language=language
+                )
 
-                else:
-                    answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                        message_text,
-                        dialog_messages=dialog_messages,
-                        chat_mode=chat_mode,
-                        language=language)
-
-                    async def fake_gen():
-                        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
-                    gen = fake_gen()
-
-                previous_answer = ""
-
-                async for gen_item in gen:
-                    status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
-
+                async for response in response_stream:
+                    answer = response.message
                     answer = answer[:telegram_utils.MESSAGE_LENGTH_LIMIT]
 
                     # update only when 100 new symbols are ready
-                    if abs(len(answer) - len(previous_answer)) < 100 and status != "finished":
+                    if abs(len(answer) - len(previous_answer)) < 100 and not response.is_finished:
                         continue
+
+                    if response.is_finished:
+                        n_input_tokens = response.n_input_tokens or 0
+                        n_output_tokens = response.n_output_tokens or 0
 
                     try:
                         await context.bot.edit_message_text(
                             answer,
                             chat_id=placeholder_message.chat_id,
                             message_id=placeholder_message.message_id,
-                            parse_mode=parse_mode)
+                            parse_mode=parse_mode
+                        )
 
                     except telegram.error.BadRequest as e:
                         if str(e).startswith("Message is not modified"):

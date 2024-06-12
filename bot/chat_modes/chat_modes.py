@@ -6,7 +6,7 @@ import yaml
 
 CHAT_MODE_NAME_KEY = "name"
 CHAT_MODE_WELCOME_MESSAGE_KEY = "welcome_message"
-CHAT_MODE_PROMPT_START_KEY = "prompt_start"
+CHAT_MODE_SYSTEM_MESSAGE_KEY = "system_message"
 CHAT_MODE_PARSE_MODE_KEY = "parse_mode"
 
 
@@ -59,9 +59,9 @@ class ChatModes:
             chat_mode=chat_mode,
             language=language)
 
-    def get_prompt_start(self, chat_mode: str, language: Optional[str]) -> str:
+    def get_system_message(self, chat_mode: str, language: Optional[str]) -> str:
         return self._get_value(
-            key=CHAT_MODE_PROMPT_START_KEY,
+            key=CHAT_MODE_SYSTEM_MESSAGE_KEY,
             chat_mode=chat_mode,
             language=language)
 

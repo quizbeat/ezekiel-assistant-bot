@@ -39,10 +39,10 @@ def get_user_id(update: Update) -> int:
 
 
 def get_language(source) -> Optional[str]:
-    if isinstance(source, Update):
+    if isinstance(source, Update) and source.message and source.message.from_user:
         return source.message.from_user.language_code
 
-    if isinstance(source, Message):
+    if isinstance(source, Message) and source.from_user:
         return source.from_user.language_code
 
     return None

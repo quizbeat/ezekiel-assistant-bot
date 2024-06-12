@@ -332,7 +332,7 @@ class Firestore:
         if from_cache and user_id in self.user_cache:
             return self.user_cache.get(user_id)
 
-        self.logger.debug("Reading from Firestore for the user %d", user_id)
+        # self.logger.debug("Reading from Firestore for the user %d", user_id)
 
         user_ref = self._get_user_ref(user_id)
 
@@ -376,4 +376,4 @@ class Firestore:
             self.user_cache[user_id].update(update_dict)
 
         self._get_user_ref(user_id).update(update_dict)
-        self.logger.debug("Did set %s", update_dict)
+        # self.logger.debug("Did set %s", update_dict)
