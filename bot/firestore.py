@@ -12,6 +12,7 @@ from firebase_admin import firestore
 
 from bot_config import BotConfig
 from logger_factory import LoggerFactory
+from dialog import DialogMessage, DialogMessageContent, DialogMessageImage
 
 
 USERS_COLLECTION_NAME = "users"
@@ -157,7 +158,7 @@ class Firestore:
 
         return dialog_id
 
-    def get_dialog_messages(self, user_id: int, dialog_id: Optional[str] = None) -> List[dict]:
+    def get_dialog_messages(self, user_id: int, dialog_id: Optional[str] = None) -> list[DialogMessage]:
         self.is_user_registered(user_id, raise_exception=True)
 
         if dialog_id is None:
@@ -167,19 +168,83 @@ class Firestore:
         dialog_ref = dialogs_collection.document(dialog_id)
         dialog_dict = dialog_ref.get().to_dict()
 
-        messages = dialog_dict.get(DIALOG_MESSAGES_KEY, [])
+        raw_messages = dialog_dict.get(DIALOG_MESSAGES_KEY, [])
+
+        messages: list[DialogMessage] = []
+
+        for raw_message in raw_messages:
+            user_message_text: str | None = None
+            user_message_images: list[DialogMessageImage] = []
+
+            raw_user_message = raw_message["user"]
+            if isinstance(raw_user_message, str):
+                # Previous text-only message format
+                user_message_text = raw_user_message
+            elif isinstance(raw_user_message, list):
+                # New message format with images support
+                text_items = list(filter(lambda item: item["type"] == "text", raw_user_message))
+                user_message_text = text_items[0]["text"]
+
+                image_items = list(filter(lambda item: item["type"] == "image", raw_user_message))
+                for image_item in image_items:
+                    user_message_images.append(
+                        DialogMessageImage(image_item["image"])
+                    )
+
+            bot_message_text = raw_message["bot"] or ""
+            message_id = raw_message["message_id"]
+            date = raw_message["date"]
+
+            messages.append(
+                DialogMessage(
+                    user=DialogMessageContent(
+                        text=user_message_text or "",
+                        images=user_message_images
+                    ),
+                    bot=DialogMessageContent(
+                        text=bot_message_text,
+                        images=[]
+                    ),
+                    message_id=message_id,
+                    date=date
+                )
+            )
 
         return messages
 
-    def set_dialog_messages(self, user_id: int, messages: list, dialog_id: Optional[str] = None):
+    def set_dialog_messages(self, user_id: int, messages: list[DialogMessage], dialog_id: Optional[str] = None):
         self.is_user_registered(user_id, raise_exception=True)
 
         if dialog_id is None:
             dialog_id = self.get_current_dialog_id(user_id)
 
+        raw_messages = []
+
+        for message in messages:
+            raw_message = {}
+
+            user_content = []
+            user_content.append({
+                "type": "text",
+                "text": message.user.text
+            })
+
+            for image in message.user.images:
+                user_content.append({
+                    "type": "image",
+                    "image": image.base64
+                })
+
+            raw_message["user"] = user_content
+            raw_message["bot"] = message.bot.text
+            raw_message["message_id"] = message.message_id
+            raw_message["date"] = message.date
+
+            raw_messages.append(raw_message)
+
         dialogs_collection = self._get_dialogs_collection(user_id)
         dialog_ref = dialogs_collection.document(dialog_id)
-        dialog_ref.update({DIALOG_MESSAGES_KEY: messages})
+        dialog_ref.update({DIALOG_MESSAGES_KEY: raw_messages})
 
     # Returns a dialog id and the message index
     def get_dialog_id(self, user_id: int, message_id: int) -> Tuple[Optional[str], Optional[int]]:

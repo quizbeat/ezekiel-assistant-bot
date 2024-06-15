@@ -1,40 +1,38 @@
 from typing import Optional, List
+from dataclasses import dataclass
 
 from bot_config import BotConfig
 from bot_resources import BotResources
 from firestore import Firestore
 
 
+@dataclass
 class DALLE2Usage:
-
-    def __init__(self, n_generated_images: int) -> None:
-        self.n_generated_images = n_generated_images
+    n_generated_images: int
 
 
+@dataclass
 class WhisperUsage:
-
-    def __init__(self, n_transcribed_seconds: int) -> None:
-        self.n_transcribed_seconds = n_transcribed_seconds
+    n_transcribed_seconds: int
 
 
+@dataclass
 class GPTUsage:
-
-    def __init__(self,
-                 model_name: str,
-                 n_used_input_tokens: int,
-                 n_user_output_tokens: int) -> None:
-
-        self.model_name = model_name
-        self.n_used_input_tokens = n_used_input_tokens
-        self.n_user_output_tokens = n_user_output_tokens
+    model_name: str
+    n_used_input_tokens: int
+    n_user_output_tokens: int
 
 
 class UsageCalculator:
+
+    # Init
 
     def __init__(self, config: BotConfig, db: Firestore, resources: BotResources) -> None:
         self.resources = resources
         self.config = config
         self.db = db
+
+    # Public
 
     def get_usage_description(self, user_id: int, language: Optional[str]) -> str:
         gpt_usage = self._get_gpt_usage(user_id)
@@ -58,6 +56,8 @@ class UsageCalculator:
             description += f"🎤 <b>Whisper</b>: {usage_seconds}\n"
 
         return description
+
+    # Private
 
     def _get_gpt_usage(self, user_id: int) -> List[GPTUsage]:
         models_usage = []

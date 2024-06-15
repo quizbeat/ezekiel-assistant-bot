@@ -1,3 +1,5 @@
+import io
+import base64
 import asyncio
 import traceback
 import html
@@ -40,6 +42,12 @@ from database_factory import DatabaseFactory
 from usage_calculator import UsageCalculator
 from logger_factory import LoggerFactory
 from chat_modes.chat_modes import ChatModes
+
+from dialog import (
+    DialogMessage,
+    DialogMessageContent,
+    DialogMessageImage
+)
 
 import openai_utils
 from openai_utils import Assistant
@@ -237,17 +245,17 @@ class Bot:
         await self.message_handle(
             update,
             context,
-            message=last_dialog_message["user"],
+            message=last_dialog_message.user.text,
             use_new_dialog_timeout=False)
 
     async def message_handle(
-            self,
-            update: Update,
-            context: CallbackContext,
-            message: Optional[str] = None,
-            use_new_dialog_timeout=True):
-
-        if update.edited_message is not None:
+        self,
+        update: Update,
+        context: CallbackContext,
+        message: Optional[str] = None,
+        use_new_dialog_timeout=True
+    ):
+        if update.edited_message:
             self.logger.warning("Ignoring edited messages")
             await self.edited_message_handle(update, context)
             return
@@ -260,7 +268,7 @@ class Bot:
             self.logger.error("The message has no sender")
             return
 
-        message_text = message or update.message.text or ""
+        message_text = message or update.message.text or update.message.caption or ""
 
         self.logger.debug("%s sent \"%s\"", telegram_utils.get_username_or_id(update), message_text)
 
@@ -270,6 +278,7 @@ class Bot:
 
         await self.register_user_if_not_registered_for_update(update)
 
+        # TODO: Check this condition earlier
         if await self.is_previous_message_not_answered_yet_for_update(update):
             self.logger.debug("The previous message has not been answered yet")
             return
@@ -280,6 +289,7 @@ class Bot:
             return
 
         user_id = update.message.from_user.id
+        current_model = self.db.get_current_model(user_id)
         chat_mode = self.db.get_current_chat_mode(user_id)
 
         if chat_mode == "artist":
@@ -293,6 +303,29 @@ class Bot:
             reply_text = self.resources.tokens_limit_reached(language)
             await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
             return
+
+        # Check the model if there is an image sent
+        if update.message.effective_attachment and current_model != "gpt-4o":
+            self.logger.debug("Attempting to use Vision features with unsupported model")
+            reply_text = "👀 Change the model to <b>GPT-4o</b> to use Vision features."
+            await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+            return
+
+        message_images: list[DialogMessageImage] = []
+
+        if update.message.effective_attachment:
+            # TODO: Extract all the images
+
+            # get the last attachment which has the best quality
+            image_attachment = update.message.effective_attachment[-1]
+            image_file = await context.bot.get_file(image_attachment.file_id)
+
+            image_bytes = io.BytesIO()
+            await image_file.download_to_memory(image_bytes)
+            image_bytes.seek(0)
+
+            image_base64 = base64.b64encode(image_bytes.read()).decode("utf-8")
+            message_images.append(DialogMessageImage(base64=image_base64))
 
         async def message_handle_fn():
             if update.message is None:
@@ -316,7 +349,6 @@ class Bot:
 
             # in case of CancelledError
             n_input_tokens, n_output_tokens = 0, 0
-            current_model = self.db.get_current_model(user_id)
 
             try:
                 # send a placeholder message to the user
@@ -327,18 +359,19 @@ class Bot:
 
                 language = telegram_utils.get_language(update)
 
-                if message_text is None or len(message_text) == 0:
+                if len(message_images) == 0 and (message_text is None or len(message_text) == 0):
+                    self.logger.error("Empty message without an image is not supported")
                     reply_text = self.resources.empty_message_sent(language)
                     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
                     return
 
-                chat_history = self.db.get_dialog_messages(user_id, dialog_id=None)
+                dialog_messages = self.db.get_dialog_messages(user_id, dialog_id=None)  # None=current
                 internal_parse_mode = self.chat_modes.get_parse_mode(chat_mode, language)
                 parse_mode = telegram_utils.get_parse_mode(internal_parse_mode)
                 language = bot_utils.detect_language(message_text)
 
-                answer = ""
-                previous_answer = ""
+                bot_response_message = ""
+                previous_bot_response_message = ""
                 n_first_dialog_messages_removed = 0
 
                 assistant = Assistant(
@@ -348,18 +381,19 @@ class Bot:
                 )
 
                 response_stream = assistant.send_message(
-                    message=message_text,
-                    chat_history=chat_history,
+                    message_text=message_text,
+                    message_images=message_images,
+                    dialog_messages=dialog_messages,
                     chat_mode=chat_mode,
                     language=language
                 )
 
                 async for response in response_stream:
-                    answer = response.message
-                    answer = answer[:telegram_utils.MESSAGE_LENGTH_LIMIT]
+                    bot_response_message = response.message
+                    bot_response_message = bot_response_message[:telegram_utils.MESSAGE_LENGTH_LIMIT]
 
                     # update only when 100 new symbols are ready
-                    if abs(len(answer) - len(previous_answer)) < 100 and not response.is_finished:
+                    if abs(len(bot_response_message) - len(previous_bot_response_message)) < 100 and not response.is_finished:
                         continue
 
                     if response.is_finished:
@@ -368,7 +402,7 @@ class Bot:
 
                     try:
                         await context.bot.edit_message_text(
-                            answer,
+                            bot_response_message,
                             chat_id=placeholder_message.chat_id,
                             message_id=placeholder_message.message_id,
                             parse_mode=parse_mode
@@ -379,22 +413,28 @@ class Bot:
                             continue
 
                         await context.bot.edit_message_text(
-                            answer,
+                            bot_response_message,
                             chat_id=placeholder_message.chat_id,
                             message_id=placeholder_message.message_id
                         )
 
                     await asyncio.sleep(0.01)  # wait a bit to avoid flooding
 
-                    previous_answer = answer
+                    previous_bot_response_message = bot_response_message
+                    n_first_dialog_messages_removed = response.n_messages_removed
 
-                # update user data
-                new_dialog_message = {
-                    "user": message_text,
-                    "bot": answer,
-                    "message_id": placeholder_message.message_id,
-                    "date": datetime.now(timezone.utc)
-                }
+                new_dialog_message = DialogMessage(
+                    user=DialogMessageContent(
+                        text=message_text,
+                        images=message_images
+                    ),
+                    bot=DialogMessageContent(
+                        text=bot_response_message,
+                        images=[]
+                    ),
+                    message_id=placeholder_message.message_id,
+                    date=datetime.now(timezone.utc)
+                )
 
                 current_dialog_messages = self.db.get_dialog_messages(user_id)
                 new_dialog_messages = current_dialog_messages + [new_dialog_message]
@@ -1102,6 +1142,7 @@ class Bot:
         application.add_handler(CommandHandler("help_group_chat", self.help_group_chat_handle, filters=user_filter))
 
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, self.message_handle))
+        application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND & user_filter, self.message_handle))
         application.add_handler(CommandHandler("retry", self.retry_handle, filters=user_filter))
         application.add_handler(CommandHandler("new", self.new_dialog_handle, filters=user_filter))
         application.add_handler(CommandHandler("cancel", self.cancel_handle, filters=user_filter))
