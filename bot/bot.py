@@ -116,6 +116,7 @@ class Bot:
     async def should_ignore(self, update: Update, context: CallbackContext) -> bool:
         try:
             message = update.message
+
             if message is None:
                 self.logger.error("Update has no message")
                 return True
@@ -123,7 +124,9 @@ class Bot:
             if message.chat.type == "private":
                 return False
 
-            if message.text is not None and ("@" + context.bot.username) in message.text:
+            message_text = message.text or message.caption or ""
+
+            if message_text is not None and ("@" + context.bot.username) in message_text:
                 # The bot mentioned in a group chat, should ignore messages w/o mentions only.
                 return False
 

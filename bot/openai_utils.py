@@ -145,8 +145,6 @@ class Assistant:
                 # drop the first message in the chat history
                 dialog_messages = dialog_messages[1:]
 
-        self.logger.debug(f"tokens used: input={n_input_tokens}; output={n_output_tokens}")
-
         # TODO: Handle [DONE] message from the response
 
         yield AssistantResponse(
