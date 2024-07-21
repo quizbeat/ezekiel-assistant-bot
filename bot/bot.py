@@ -1157,7 +1157,7 @@ class Bot:
         application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND & user_filter, self.message_handle))
         application.add_handler(CommandHandler("retry", self.retry_handle, filters=user_filter))
         application.add_handler(CommandHandler("new", self.new_dialog_handle, filters=user_filter))
-        application.add_handler(CommandHandler("cancel", self.cancel_handle, filters=user_filter))
+        # application.add_handler(CommandHandler("cancel", self.cancel_handle, filters=user_filter))
 
         application.add_handler(MessageHandler(filters.VOICE & user_filter, self.voice_message_handle))
 
