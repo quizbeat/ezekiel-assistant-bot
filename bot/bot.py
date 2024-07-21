@@ -448,6 +448,15 @@ class Bot:
                 new_n_remaining_tokens = current_n_remaining_tokens - (n_input_tokens + n_output_tokens)
                 self.db.set_n_remaining_tokens(user_id, new_n_remaining_tokens)
 
+                if user_id == self.config.bot_admin_id:
+                    diagnostics_message = "Diagnostics:\n"
+                    diagnostics_message += f"⤷ mode: {chat_mode}\n"
+                    diagnostics_message += f"⤷ model: {current_model}\n"
+                    diagnostics_message += f"⤷ input tokens: {n_input_tokens}\n"
+                    diagnostics_message += f"⤷ output tokens: {n_output_tokens}\n"
+                    diagnostics_message += f"⤷ remaining tokens: {new_n_remaining_tokens}"
+                    await update.message.reply_text(diagnostics_message)
+
             except asyncio.CancelledError:
                 # note: intermediate token updates only work when enable_message_streaming=True (config.yml)
                 self.db.set_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
