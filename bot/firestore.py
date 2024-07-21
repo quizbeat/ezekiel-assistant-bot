@@ -269,6 +269,11 @@ class Firestore:
             self.logger.debug("Stored current model is None, assuming a default value")
             current_model = self.config.get_default_model()
 
+        if not self.config.is_model_available(current_model):
+            self.logger.debug("Stored current model is not available, will update to default")
+            current_model = self.config.get_default_model()
+            self.set_current_model(user_id, current_model)
+
         return current_model
 
     def set_current_model(self, user_id: int, current_model: str):

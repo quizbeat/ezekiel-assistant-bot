@@ -1,13 +1,13 @@
-available_text_models: ["gpt-3.5-turbo", "gpt-4o"]
+available_text_models: ["gpt-4o-mini", "gpt-4o"]
 
 info:
-  gpt-3.5-turbo:
+  gpt-4o-mini:
     type: chat_completion
-    name: GPT-3.5 Turbo
-    description: The GPT-3.5 Turbo model is a fast, inexpensive model for simple tasks. It has a 16K context window and is optimized for dialog.
+    name: GPT-4o mini
+    description: GPT-4o mini is OpenAI's <b>most cost-efficient</b> small model that’s smarter and cheaper than GPT-3.5 Turbo, and has vision capabilities. The model has 128K context and an October 2023 knowledge cutoff.
 
     scores:
-      Smart: 3
+      Smart: 4
       Fast: 5
       Cheap: 5
 

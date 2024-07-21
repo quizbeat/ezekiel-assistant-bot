@@ -20,8 +20,8 @@ OPENAI_COMPLETION_OPTIONS = {
 }
 
 OPENAI_INVALID_REQUEST_PREFIX = "Your request was rejected as a result of our safety system"
-OPENAI_SUPPORTED_MODELS = {"gpt-3.5-turbo", "gpt-4o"}
-OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo"
+OPENAI_SUPPORTED_MODELS = {"gpt-4o-mini", "gpt-4o"}
+OPENAI_DEFAULT_MODEL = "gpt-4o-mini"
 
 
 @dataclass
@@ -88,8 +88,8 @@ class Assistant:
         if chat_mode not in self.chat_modes.get_all_chat_modes(language):
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
-        if len(message_images) > 0 and self.model != "gpt-4o":
-            raise ValueError('Vision feature requires GTP-4o')
+        if len(message_images) > 0 and self.model not in ["gpt-4o", "gpt-4o-mini"]:
+            raise ValueError('Vision feature requires GPT-4o or GPT-4o mini model')
 
         dialog_messages_len_before = len(dialog_messages)
 

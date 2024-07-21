@@ -31,3 +31,6 @@ class BotConfig:
 
     def get_default_model(self) -> str:
         return self.models["available_text_models"][0]
+
+    def is_model_available(self, model: str) -> bool:
+        return model in self.models["available_text_models"]
